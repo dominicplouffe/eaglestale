@@ -24,6 +24,7 @@ Works in any modern browser on macOS or Linux (and Windows). Saves go to the bro
 | Where | Keys |
 |---|---|
 | Everywhere | Click a menu entry or press the highlighted letter. `M` toggles sound. `Esc` closes panels. |
+| Party panel | Click a hero's card to see their attributes, equipment, pack and spells (works anywhere, even mid-battle). Click again or press `Esc` to close. |
 | Dungeon | `Up`/`W` forward, `Left`/`A` and `Right`/`D` turn, `Down`/`S` turn around, `E` use stairs, `C` camp (party sheet, spells, save) |
 | Combat | Each living hero picks `A`ttack, `C`ast, `D`efend, `I`tem or `R`un, then the round plays out. `Space` skips the animation. |
 

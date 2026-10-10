@@ -1,21 +1,10 @@
 import { content } from '../content/registry';
 import type { Game } from '../engine/game';
 import { el } from '../engine/shell';
-import {
-  applyItemUse,
-  canUse,
-  defense,
-  equipItem,
-  isAlive,
-  knownSpells,
-  toHit,
-  unequipItem,
-  weaponDice,
-  xpToNext,
-} from '../rules/character';
-import { diceText } from '../rules/rng';
+import { applyItemUse, canUse, equipItem, isAlive, knownSpells, unequipItem, xpToNext } from '../rules/character';
 import { castCampSpell, isCampSpell } from '../rules/spells';
-import { ATTRS, ATTR_NAMES, SLOTS } from '../rules/types';
+import { SLOTS } from '../rules/types';
+import { statBlock } from './inspect';
 
 interface SheetOptions {
   startId?: string;
@@ -65,17 +54,7 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
       el('div', { class: 'dim', text: `XP ${c.xp}${next ? ` / ${next}` : ' (max level)'}   Gold ${game.state.gold}` }),
     );
 
-    const stats = el('div', { class: 'cols' });
-    const left = el('div', {});
-    left.append(el('h3', { text: 'Attributes' }));
-    for (const a of ATTRS) left.append(el('div', { text: `${ATTR_NAMES[a].padEnd(13)} ${c.stats[a]}` }));
-    left.append(
-      el('h3', { text: 'Combat' }),
-      el('div', { text: `HP ${c.hp}/${c.maxHp}   SP ${c.sp}/${c.maxSp}` }),
-      el('div', { text: `Defense ${defense(c)}   To-hit +${toHit(c)}` }),
-      el('div', { text: `Damage ${diceText(weaponDice(c))}` }),
-    );
-    stats.append(left);
+    const stats = el('div', { class: 'cols' }, statBlock(c));
 
     const right = el('div', {});
     right.append(el('h3', { text: 'Equipment' }));
