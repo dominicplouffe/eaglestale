@@ -103,6 +103,14 @@ describe('battle', () => {
     expect(party).toBeDefined();
   });
 
+  it('names unique monsters without "the" and others with it', () => {
+    const b = new Battle(standardParty(), [{ monster: 'malachar', count: 1 }, { monster: 'goblin', count: 1 }], new Rng(3));
+    const log = [0, 1, 2].flatMap(() => b.resolveRound(autoOrders(b))).map((e) => e.text).join('\n');
+    expect(log).toMatch(/^Malachar the Plucker /m);
+    expect(log).not.toMatch(/the Malachar/i);
+    expect(log).toMatch(/the Goblin/i);
+  });
+
   it('defeat when everyone is dead', () => {
     const party = [makeHero('mage')];
     party[0].hp = 1;

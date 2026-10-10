@@ -1,7 +1,16 @@
 import { content } from '../content/registry';
 import type { Game } from '../engine/game';
 import { el } from '../engine/shell';
-import { applyItemUse, canUse, equipItem, isAlive, knownSpells, unequipItem, xpToNext } from '../rules/character';
+import {
+  MAX_INVENTORY,
+  applyItemUse,
+  canUse,
+  equipItem,
+  isAlive,
+  knownSpells,
+  unequipItem,
+  xpToNext,
+} from '../rules/character';
 import { castCampSpell, isCampSpell } from '../rules/spells';
 import { SLOTS } from '../rules/types';
 import { statBlock } from './inspect';
@@ -81,7 +90,7 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
     stats.append(right);
     root.append(stats);
 
-    root.append(el('h3', { text: `Pack (${c.inventory.length}/8)` }));
+    root.append(el('h3', { text: `Pack (${c.inventory.length}/${MAX_INVENTORY})` }));
     if (c.inventory.length === 0) root.append(el('div', { class: 'dim', text: 'Empty.' }));
     c.inventory.forEach((id, index) => {
       const item = content.item(id);
