@@ -1,4 +1,5 @@
 import type { ContentPack } from '../../rules/types';
+import { cityStages, feathers, quests } from './campaign';
 import { classes } from './classes';
 import { dungeons } from './dungeons';
 import { items } from './items';
@@ -17,4 +18,7 @@ export const basePack: ContentPack = {
   monsters,
   dungeons,
   shops,
+  quests,
+  feathers,
+  cityStages,
 };

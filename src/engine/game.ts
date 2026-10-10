@@ -1,8 +1,8 @@
 import type { Character } from '../rules/types';
-import { deserialize, newGameState, partyMembers, serialize, type GameState, type LoadResult } from '../rules/state';
+import { newGameState, partyMembers, startingState, type GameState, type LoadResult } from '../rules/state';
 import type { Audio } from './audio';
+import { SaveSlots, slotName, type SlotId } from './saves';
 import type { LogStyle, Shell } from './shell';
-import { readStored, writeStored } from './storage';
 import { inspectPanel } from '../ui/inspect';
 import { renderPartyPanel } from '../ui/partyPanel';
 
@@ -11,14 +11,15 @@ export interface Screen {
   exit?(game: Game): void;
 }
 
-const SAVE_KEY = 'eagles-tale:save';
-
 /** Ties together state, shell (DOM/canvas), audio and the active screen. */
 export class Game {
   state: GameState = newGameState();
   private current: Screen | null = null;
   /** Id of the hero whose details are open (clicked in the party panel). */
   private inspecting: string | null = null;
+  readonly saves = new SaveSlots();
+  /** The save slot this game was loaded from or last saved to (null for a new game or the autosave). */
+  slot: SlotId | null = null;
 
   constructor(
     readonly shell: Shell,
@@ -65,26 +66,37 @@ export class Game {
   }
 
   get hasSave(): boolean {
-    return readStored(SAVE_KEY) !== null;
+    return this.saves.latest() !== null;
   }
 
-  /** Saves the game, telling the player if the browser refused. Returns true on success. */
-  save(): boolean {
-    const ok = writeStored(SAVE_KEY, serialize(this.state));
+  /** Saves to a slot, telling the player how it went. Returns true on success. */
+  save(slot: SlotId): boolean {
+    const ok = this.saves.write(slot, this.state);
     if (!ok) this.say("Couldn't save: this browser is blocking or out of site storage.", 'bad');
+    else {
+      if (slot !== 'auto') this.slot = slot;
+      this.say(`Game saved to ${slotName(slot)}.`, 'good');
+    }
     return ok;
   }
 
-  /** Loads the saved game into `state` if it can be read; the result says why not, or what was repaired. */
-  load(): LoadResult {
-    const raw = readStored(SAVE_KEY);
-    if (raw === null) return { ok: false, reason: 'There is no saved game.' };
-    const result = deserialize(raw);
-    if (result.ok) this.state = result.state;
+  /** Quietly saves to the autosave slot (only a failure is mentioned). */
+  autosave(): void {
+    if (!this.saves.write('auto', this.state)) this.say("Couldn't autosave: this browser is blocking or out of site storage.", 'bad');
+  }
+
+  /** Loads a slot into `state` if it can be read; the result says why not, or what was repaired. */
+  load(slot: SlotId): LoadResult {
+    const result = this.saves.load(slot);
+    if (result.ok) {
+      this.state = result.state;
+      this.slot = slot === 'auto' ? null : slot;
+    }
     return result;
   }
 
   newGame(): void {
-    this.state = newGameState();
+    this.state = startingState();
+    this.slot = null;
   }
 }

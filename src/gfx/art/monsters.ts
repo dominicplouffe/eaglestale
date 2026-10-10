@@ -81,6 +81,7 @@ export const MONSTER_ART: Record<string, ArtDef> = {
   },
   kobold: {
     colors: { k: '#14121c', R: '#e8834e', r: '#b4472e', q: '#6c2436', y: '#ffe14a', w: '#f2efe6', b: '#c8c4b4', g: '#8a8a96', L: '#b07a48', l: '#7a5230', d: '#4a321c' },
+    materials: { scales: 'Rrq' },
     rows: [
       '................................',
       '................................',
@@ -229,6 +230,7 @@ export const MONSTER_ART: Record<string, ArtDef> = {
   },
   boneknight: {
     colors: { k: '#14121c', A: '#7387b5', a: '#434f7e', B: '#252b4e', D: '#10122a', W: '#f2efe6', w: '#c8c4b4', b: '#8a8a96', e: '#ff3a3a', s: '#e4e8f0', t: '#9aa2b4', g: '#e8c34a', G: '#a87a2a', R: '#6a1c2c', r: '#942a3c' },
+    materials: { armour: 'AaB' },
     rows: [
       '................................',
       '.....k....................k.....',

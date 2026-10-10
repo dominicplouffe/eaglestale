@@ -33,6 +33,27 @@ export const items: ItemDef[] = [
   { id: 'greaterdraught', name: 'Greater Draught', desc: 'Restores 40 HP. Tastes of expensive pond.', price: 120, use: { kind: 'heal', amount: 40 } },
   { id: 'tonic', name: 'Spirit Tonic', desc: 'Restores 8 SP.', price: 80, use: { kind: 'restoreSp', amount: 8 } },
 
+  // Sold once the city starts to recover (see the city stages in campaign.ts)
+  { id: 'honeybun', name: 'Honey Bun', desc: 'From the reopened bakery on Crumb Lane. Still warm. Restores 25 HP.', price: 25, use: { kind: 'heal', amount: 25 } },
+  { id: 'steelsword', name: 'Steel Sword', desc: 'Talonreach steel, back at last.', price: 420, slot: 'weapon', proficiency: 'sword', damage: [1, 10], hit: 1 },
+  { id: 'warhammer', name: 'War Hammer', desc: 'Argues persuasively with armour.', price: 450, slot: 'weapon', proficiency: 'mace', damage: [1, 10, 1] },
+  { id: 'greataxe', name: 'Great Axe', desc: 'Mostly edge. Some handle.', price: 480, slot: 'weapon', proficiency: 'axe', damage: [1, 12] },
+  { id: 'warbow', name: 'War Bow', desc: 'Pulls like a mule. Hits like one too.', price: 480, slot: 'weapon', proficiency: 'bow', damage: [1, 10], ranged: true },
+  { id: 'scalemail', name: 'Scale Mail', desc: 'Overlapping steel scales. Sounds like a nervous fish.', price: 520, slot: 'body', proficiency: 'medium', ac: 5 },
+  { id: 'towershield', name: 'Tower Shield', desc: 'Basically a door with a handle.', price: 320, slot: 'shield', proficiency: 'shield', ac: 3 },
+  { id: 'steelhelm', name: 'Steel Helm', desc: 'Polished to a smug shine.', price: 260, slot: 'head', proficiency: 'heavy', ac: 3 },
+  { id: 'pinioncharm', name: 'Pinion Charm', desc: 'A golden token blessed at the Eagle Tower.', price: 600, slot: 'trinket', ac: 2 },
+
+  // Bounty goods dropped by monsters (the Guild pays for these)
+  { id: 'rattail', name: 'Rat Tail', desc: 'The Guild pays for these. Nobody asks why.', price: 2 },
+  { id: 'cultsigil', name: 'Cult Sigil', desc: 'A plucked-feather badge worn by Malachar\'s followers.', price: 5 },
+  { id: 'spidersilk', name: 'Spider Silk', desc: 'A skein of strong, sticky thread.', price: 8 },
+
+  // Keys and story items (can't be sold or dropped)
+  { id: 'cryptkey', name: 'Ossuary Key', desc: 'A bone-handled key carved with an eagle. Opens the Ossuary in the Crypts.', price: 0, quest: true },
+  { id: 'sewerkey', name: 'Sewer Grate Key', desc: 'Taken from High Priest Grackle. Opens the way into the Gurgle beneath the city.', price: 0, quest: true },
+  { id: 'wobblebyhelm', name: "Wobbleby's Helm", desc: 'An heirloom helmet. Fits anyone; slightly dented on one side.', price: 350, slot: 'head', ac: 3 },
+
   // Dungeon treasure (not sold in shops)
   { id: 'peckingblade', name: 'Pecking Blade', desc: 'A sword with a beak-shaped edge. Finds the soft bits.', price: 500, slot: 'weapon', proficiency: 'sword', damage: [1, 8, 2], hit: 1 },
   { id: 'downymail', name: 'Downy Mail', desc: 'Chain mail lined with eagle down. Warm and strong.', price: 800, slot: 'body', proficiency: 'medium', ac: 6 },

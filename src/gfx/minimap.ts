@@ -6,6 +6,7 @@ export const MAP_COLORS = {
   wall: '#4a3c7a',
   floor: '#1e1838',
   door: '#a8702a',
+  locked: '#d04040',
   stairsUp: '#c8bea0',
   stairsDown: '#e8c34a',
   special: '#5ac8e0',
@@ -18,6 +19,7 @@ export function drawMinimap(
   level: DungeonLevel,
   explored: ReadonlySet<string>,
   pos: { x: number; y: number; dir: number },
+  at: (x: number, y: number) => string = (x, y) => level.grid[y]?.[x] ?? '#',
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -31,10 +33,11 @@ export function drawMinimap(
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       if (!explored.has(`${x},${y}`)) continue;
-      const t = level.grid[y][x];
+      const t = at(x, y);
       ctx.fillStyle =
         t === '#' ? MAP_COLORS.wall
         : t === '+' ? MAP_COLORS.door
+        : t === '=' ? MAP_COLORS.locked
         : t === '<' ? MAP_COLORS.stairsUp
         : t === '>' ? MAP_COLORS.stairsDown
         : isSpecialTile(t) ? MAP_COLORS.special

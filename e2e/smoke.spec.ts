@@ -51,13 +51,27 @@ test('explore, camp, save, and continue the saved game', async ({ page }) => {
   await expect(page.locator('#overlay h2')).toHaveText('Formation');
   await page.keyboard.press('Escape');
   await page.keyboard.press('s');
-  await expect(log(page).last()).toHaveText('Game saved.');
+  await expect(menuTitle(page)).toHaveText('Save to which slot?');
+  await page.keyboard.press('2');
+  await expect(log(page).last()).toHaveText('Game saved to Slot 2.');
+  await expect(menuTitle(page)).toHaveText('Camp');
 
   await page.reload();
-  await page.keyboard.press('c'); // Continue saved game
+  await expect(log(page).last()).toHaveText(/^Last played: 6 heroes, level 1 · The Cellars/);
+  await page.keyboard.press('c'); // Continue: the most recent save
   await expect(log(page).last()).toHaveText('Game loaded.');
   await expect(page.locator('#location')).toHaveText(/The Cellars/);
   await expect(page.locator('.party-card')).toHaveCount(6);
+
+  // Going down into the Roost autosaved too, back in town.
+  await page.reload();
+  await page.keyboard.press('l');
+  await expect(menuTitle(page)).toHaveText('Load which game?');
+  await expect(page.locator('#menu button', { hasText: 'Slot 1 (empty)' })).toBeDisabled();
+  await expect(page.locator('#overlay .row', { hasText: 'Slot 2' })).toContainText('The Cellars');
+  await page.keyboard.press('a');
+  await expect(log(page).last()).toHaveText('Game loaded.');
+  await expect(page.locator('#location')).toHaveText(/The Cellars/);
 });
 
 test('a battle plays out to victory', async ({ page }) => {
@@ -112,5 +126,22 @@ test('the game still runs when the browser blocks site storage', async ({ page }
   });
   await startWithParty(page);
   await page.keyboard.press('s');
+  await page.keyboard.press('1');
   await expect(log(page).last()).toHaveText(/Couldn't save/);
+});
+
+test('take a bounty and follow it in the journal', async ({ page }) => {
+  await startWithParty(page);
+  await page.keyboard.press('w');
+  await expect(log(page).last()).toHaveText(/perch stands empty/);
+  await page.keyboard.press('g');
+  await page.keyboard.press('b');
+  await page.locator('#overlay .row', { hasText: 'Rat Problem' }).getByRole('button', { name: 'Take' }).click();
+  await expect(log(page).last()).toHaveText(/^New task: Rat Problem/);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.keyboard.press('l');
+  await page.keyboard.press('j');
+  await expect(page.locator('#overlay h2')).toHaveText('Journal');
+  await expect(page.locator('#overlay')).toContainText('The Plucked Eagle');
+  await expect(page.locator('#overlay')).toContainText('Rat Problem');
 });

@@ -4,15 +4,18 @@ import { el, type MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W, renderDungeon } from '../gfx/dungeonView';
 import { drawText } from '../gfx/font';
 import { MAP_COLORS, drawMinimap } from '../gfx/minimap';
-import { FRONT_ROW_SIZE, MAX_INVENTORY, isAlive, restoreFully } from '../rules/character';
+import { FRONT_ROW_SIZE, isAlive, restoreFully } from '../rules/character';
 import type { EncounterSpec } from '../rules/combat';
-import { DIRS, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
+import { DIRS, effectiveTile, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
+import { giveReward, lockedBecause, questEvent, startQuest } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { movePartyMember, type DungeonPosition } from '../rules/state';
 import type { DungeonLevel, Special } from '../rules/types';
 import { openCharSheet } from '../ui/charSheet';
+import { openJournal } from '../ui/journal';
 import { startBattle } from './combat';
 import { partyWiped } from './flow';
+import { chooseSaveSlot } from './saveMenu';
 import { townScreen } from './town';
 import { victoryScreen } from './victory';
 
@@ -44,6 +47,8 @@ class DungeonView {
   private anim: { from: Camera; to: Camera; start: number; ms: number; bump: boolean } | null = null;
   /** Moves pressed while the camera is still gliding run as soon as it arrives (up to two wait). */
   private queued: (() => void)[] = [];
+  /** Secret walls a rogue has already pointed out this visit. */
+  private hinted = new Set<string>();
 
   constructor(private readonly game: Game) {}
 
@@ -55,6 +60,21 @@ class DungeonView {
     return content.dungeon(this.pos.dungeon).levels[this.pos.level];
   }
 
+  /** Whether the special at a square has been used (a lock opened, a secret found, a chest emptied). */
+  private used = (x: number, y: number): boolean => !!this.game.state.flags[specialKey(this.pos.dungeon, this.pos.level, x, y)];
+
+  /** The square as it is now: locks and secrets change as the party plays. */
+  private at = (x: number, y: number): string => effectiveTile(this.level, x, y, this.used);
+
+  private say(lines: string[], style: 'gold' | 'good' | 'story' | 'bad' | 'dim' = 'gold'): void {
+    for (const line of lines) this.game.say(line, style);
+  }
+
+  /** Sets a story flag (if any) and lets the quests react. */
+  private story(flag: string | undefined): void {
+    if (flag) this.say(questEvent(this.game.state, { kind: 'flag', flag }));
+  }
+
   start(): void {
     const { shell, audio } = this.game;
     audio.music('dungeon');
@@ -63,7 +83,7 @@ class DungeonView {
     this.queued = [];
     shell.setDraw((ctx, t) => {
       const cam = this.camera(performance.now());
-      renderDungeon(ctx, { level: this.level, x: cam.x, y: cam.y, dir: this.pos.dir, angle: cam.angle }, t);
+      renderDungeon(ctx, { level: this.level, x: cam.x, y: cam.y, dir: this.pos.dir, angle: cam.angle, at: this.at }, t);
       drawText(ctx, DIRS[this.pos.dir].name, 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c' });
       drawText(ctx, this.level.name, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
     });
@@ -122,7 +142,7 @@ class DungeonView {
     shell.setLocation(`${content.dungeon(this.pos.dungeon).name} - ${this.level.name} (level ${this.pos.level + 1})`);
     shell.minimap.hidden = false;
     const set = new Set(this.game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
-    drawMinimap(shell.minimap, this.level, set, this.pos);
+    drawMinimap(shell.minimap, this.level, set, this.pos, this.at);
   }
 
   /** Records the tile underfoot and its neighbours (so walls show up) on the auto-map. */
@@ -142,6 +162,7 @@ class DungeonView {
         { key: 'd', label: 'Turn right', action: () => this.turn(1) },
         { key: 's', label: 'Turn around', action: () => this.turn(2) },
         { key: 'e', label: 'Use stairs here', action: () => this.useStairs() },
+        { key: 'j', label: 'Journal', action: () => this.journal() },
         { key: 'c', label: 'Camp (party, save)', action: () => this.camp() },
       ],
       'Exploring',
@@ -154,6 +175,26 @@ class DungeonView {
     this.game.audio.sfx('ui');
     this.glide(from, delta === 2 ? TURN_MS * 1.5 : TURN_MS);
     this.refreshHud();
+    this.senseSecret();
+  }
+
+  /** A rogue notices a draught from a secret wall straight ahead. */
+  private senseSecret(): void {
+    const d = DIRS[this.pos.dir];
+    const x = this.pos.x + d.dx;
+    const y = this.pos.y + d.dy;
+    const special = this.level.specials[tileAt(this.level, x, y)];
+    const key = `${this.pos.level}:${x},${y}`;
+    if (special?.kind !== 'secret' || this.used(x, y) || this.hinted.has(key)) return;
+    const rogue = this.game.party.find((c) => isAlive(c) && c.classId === 'rogue');
+    if (!rogue) return;
+    this.hinted.add(key);
+    this.game.say(`${rogue.name} feels a draught from the wall ahead.`, 'gold');
+  }
+
+  private journal(): void {
+    this.modal = true;
+    openJournal(this.game, () => this.start());
   }
 
   private step(): void {
@@ -161,23 +202,44 @@ class DungeonView {
     const d = DIRS[this.pos.dir];
     const nx = this.pos.x + d.dx;
     const ny = this.pos.y + d.dy;
-    const tile = tileAt(this.level, nx, ny);
+    const raw = tileAt(this.level, nx, ny);
+    const special = this.level.specials[raw];
+    const flag = specialKey(this.pos.dungeon, this.pos.level, nx, ny);
+    const tile = this.at(nx, ny);
     const from = this.camera(performance.now());
-    if (!isWalkable(tile)) {
-      game.audio.sfx('bump');
-      this.glide(from, BUMP_MS, true);
-      return;
+    const opening = !isWalkable(tile);
+    if (opening) {
+      if (special?.kind === 'secret') {
+        // Walking into a secret wall finds it.
+        game.state.flags[flag] = true;
+        game.say(special.text, 'gold');
+      } else if (special?.kind === 'lock') {
+        const why = lockedBecause(game.state, special);
+        if (why) {
+          game.say(`${special.text} ${why}`, 'dim');
+          game.audio.sfx('bump');
+          this.glide(from, BUMP_MS, true);
+          return;
+        }
+        game.state.flags[flag] = true;
+        game.say(special.opened, 'gold');
+      } else {
+        game.audio.sfx('bump');
+        this.glide(from, BUMP_MS, true);
+        return;
+      }
     }
     this.pos.x = nx;
     this.pos.y = ny;
     this.glide(from, STEP_MS);
-    game.audio.sfx(tile === '+' ? 'door' : 'step');
+    game.audio.sfx(opening || tile === '+' ? 'door' : 'step');
     this.explore();
     this.refreshHud();
+    this.senseSecret();
     game.state.stepsSinceFight += 1;
 
-    if (tile === '<' || tile === '>') return this.askStairs(tile);
-    if (this.level.specials[tile]) return this.trigger(this.level.specials[tile], nx, ny);
+    if (raw === '<' || raw === '>') return this.askStairs(raw);
+    if (special && special.kind !== 'lock' && special.kind !== 'secret') return this.trigger(special, nx, ny);
     if (
       game.state.stepsSinceFight >= MIN_STEPS_BETWEEN_FIGHTS &&
       gameRng.chance(this.level.encounterRate)
@@ -200,7 +262,10 @@ class DungeonView {
     const question = toTown ? 'Climb back up to Talonreach?' : goingUp ? 'Climb the stairs up?' : 'Descend the stairs?';
     this.confirm(question, () => {
       this.game.audio.sfx('stairs');
-      if (toTown) return this.game.go(townScreen);
+      if (toTown) {
+        this.game.go(townScreen);
+        return this.game.autosave();
+      }
       const dungeon = content.dungeon(this.pos.dungeon);
       const level = this.pos.level + (goingUp ? -1 : 1);
       const target = dungeon.levels[level];
@@ -216,6 +281,7 @@ class DungeonView {
       this.game.say(`You arrive on ${target.name}.`, 'dim');
       this.explore();
       this.refreshHud();
+      this.game.autosave();
     });
   }
 
@@ -245,13 +311,30 @@ class DungeonView {
     switch (special.kind) {
       case 'message':
         game.say(special.text, 'story');
+        if (!done) {
+          game.state.flags[flag] = true;
+          this.story(special.flag);
+        }
+        return;
+      case 'talk':
+        if (done) {
+          game.say(`${special.name}: "${special.after}"`, 'story');
+          return;
+        }
+        game.state.flags[flag] = true;
+        game.say(`${special.name}: "${special.text}"`, 'story');
+        if (special.quest) this.say(startQuest(game.state, special.quest));
+        this.story(special.flag);
+        return;
+      case 'lock':
+      case 'secret':
         return;
       case 'fight':
         if (done) return;
         game.say(special.text, 'story');
         game.audio.sfx('encounter');
         this.fight(
-          special.groups.map((g, i) => ({ monster: g.monster, count: g.count, distance: i === 0 ? 0 : 1 })),
+          special.groups.map((g) => ({ ...g })),
           () => this.fightWon(special, flag),
         );
         return;
@@ -259,7 +342,10 @@ class DungeonView {
         if (done) return;
         game.state.flags[flag] = true;
         game.say(special.text, 'story');
-        this.award(special.gold, special.item);
+        this.say(giveReward(game.state, { gold: special.gold, item: special.item, feather: special.feather }));
+        game.audio.sfx('buy');
+        game.refreshParty();
+        this.story(special.flag);
         return;
       case 'trap': {
         if (done) return;
@@ -285,26 +371,11 @@ class DungeonView {
     }
   }
 
-  private award(gold?: number, itemId?: string): void {
-    const { game } = this;
-    if (gold) {
-      game.state.gold += gold;
-      game.say(`Found ${gold} gold.`, 'gold');
-    }
-    if (itemId) {
-      const item = content.item(itemId);
-      const carrier = game.party.find((c) => isAlive(c) && c.inventory.length < MAX_INVENTORY);
-      if (carrier) {
-        carrier.inventory.push(itemId);
-        game.say(`${carrier.name} takes the ${item.name}.`, 'gold');
-      } else game.say(`Everyone's pack is full, so the ${item.name} is left behind. Sad.`, 'bad');
-    }
-    game.audio.sfx('buy');
-  }
-
   private fightWon(special: Extract<Special, { kind: 'fight' }>, flag: string): boolean {
     this.game.state.flags[flag] = true;
-    this.award(special.reward?.gold, special.reward?.item);
+    this.say(giveReward(this.game.state, special.reward));
+    this.game.audio.sfx('buy');
+    this.story(special.flag);
     if (!special.finale) return false;
     this.game.state.won = true;
     this.game.go(victoryScreen);
@@ -344,7 +415,8 @@ class DungeonView {
       },
       { key: 'f', label: 'Formation', action: () => this.formation() },
       { key: 'v', label: 'View map', action: () => this.bigMap() },
-      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
+      { key: 'j', label: 'Journal', action: () => openJournal(game, () => this.camp()) },
+      { key: 's', label: 'Save game', action: () => chooseSaveSlot(game, () => this.camp()) },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
     game.shell.setMenu(items, 'Camp');
@@ -400,7 +472,7 @@ class DungeonView {
     canvas.width = BIG_MAP_PX;
     canvas.height = BIG_MAP_PX;
     const explored = new Set(game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
-    drawMinimap(canvas, this.level, explored, this.pos);
+    drawMinimap(canvas, this.level, explored, this.pos, this.at);
     const key = (color: string, label: string): HTMLElement => {
       const swatch = el('i', { class: 'swatch' });
       swatch.style.background = color;

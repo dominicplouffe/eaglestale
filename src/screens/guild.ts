@@ -19,7 +19,8 @@ import {
   movePartyMember,
   removeFromParty,
 } from '../rules/state';
-import { ATTRS, ATTR_NAMES, type Stats } from '../rules/types';
+import { MAX_BOUNTIES, availableBounties, goalProgress, takeBounty, takenBounties, turnIn } from '../rules/quests';
+import { ATTRS, ATTR_NAMES, type Reward, type Stats } from '../rules/types';
 import { townScreen } from './town';
 
 const MAX_ROSTER = 20;
@@ -30,7 +31,11 @@ export const guildScreen: Screen = {
     game.shell.setLocation('Guild of Questionable Heroes');
     game.shell.setDraw((ctx, t) => drawPlace(ctx, 'guild', t));
     game.say('The Guildmaster glances up from a half-eaten sandwich. "Heroes? Again? Sit down."', 'story');
-    game.shell.setMenu([{ key: 'l', label: 'Leave the Guild', action: () => game.go(townScreen) }]);
+    game.shell.setMenu([
+      { key: 'r', label: 'Roster', action: () => showRoster(game) },
+      { key: 'b', label: 'Bounty board', action: () => showBounties(game) },
+      { key: 'l', label: 'Leave the Guild', action: () => game.go(townScreen) },
+    ]);
     game.shell.setKeyHandler((e) => {
       if (e.key === 'Escape' && !game.shell.overlayOpen) {
         game.go(townScreen);
@@ -41,6 +46,54 @@ export const guildScreen: Screen = {
     showRoster(game);
   },
 };
+
+const rewardText = (r: Reward | undefined): string =>
+  [r?.gold ? `${r.gold}g` : '', r?.item ? content.item(r.item).name : '', r?.xp ? `${r.xp} XP` : ''].filter(Boolean).join(', ') || 'gratitude';
+
+/** Side missions: take up to three bounties, then come back here to claim the reward. */
+function showBounties(game: Game): void {
+  const { state } = game;
+  const redraw = (lines: string[]): void => {
+    for (const line of lines) game.say(line, 'gold');
+    game.refreshParty();
+    showBounties(game);
+  };
+  const root = el(
+    'div',
+    { class: 'panel' },
+    el('h2', { text: 'Bounty board' }),
+    el('div', { class: 'dim', text: `Notices pinned three deep. You can carry ${MAX_BOUNTIES} bounties at once.` }),
+  );
+  const taken = takenBounties(state);
+  root.append(el('h3', { text: 'Your bounties' }));
+  if (taken.length === 0) root.append(el('div', { class: 'dim', text: 'None taken.' }));
+  for (const q of taken) {
+    const p = state.quests[q.id];
+    const step = q.steps[Math.min(p.step, q.steps.length - 1)];
+    const { have, need } = goalProgress(state, step.goal, p.count);
+    const row = el('div', { class: 'row' }, el('span', { class: 'grow', text: `${q.name}: ${p.status === 'ready' ? 'done!' : `${step.text}${need > 1 ? ` (${have}/${need})` : ''}`}` }));
+    if (p.status === 'ready') {
+      row.append(el('button', { class: 'btn small', text: `Claim (${rewardText(q.reward)})`, onclick: () => { game.audio.sfx('buy'); redraw(turnIn(state, q.id)); } }));
+    }
+    root.append(row);
+  }
+  root.append(el('h3', { text: 'Wanted' }));
+  const open = availableBounties(state);
+  if (open.length === 0) root.append(el('div', { class: 'dim', text: 'Nothing new. Come back after your next expedition.' }));
+  for (const q of open) {
+    root.append(
+      el(
+        'div',
+        { class: 'row' },
+        el('span', { class: 'grow', text: `${q.name}: ${q.summary}` }),
+        el('span', { class: 'price', text: rewardText(q.reward) }),
+        el('button', { class: 'btn small', text: 'Take', disabled: taken.length >= MAX_BOUNTIES, onclick: () => redraw(takeBounty(state, q.id)) }),
+      ),
+    );
+  }
+  root.append(el('div', { class: 'tabs' }, el('button', { class: 'btn', text: 'Close', onclick: () => game.shell.setOverlay(null) })));
+  game.shell.setOverlay(root);
+}
 
 function showRoster(game: Game): void {
   const { state } = game;

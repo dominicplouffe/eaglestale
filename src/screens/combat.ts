@@ -16,6 +16,7 @@ import {
   type MonsterInstance,
   type Order,
 } from '../rules/combat';
+import { giveItem, questEvent } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { canCast } from '../rules/spells';
 import type { Character, DungeonLevel, DungeonTheme, SpellDef } from '../rules/types';
@@ -628,13 +629,20 @@ class CombatScreen implements Screen {
       case 'ongoing':
         this.beginRound();
         return;
-      case 'victory':
+      case 'victory': {
         game.state.gold += battle.goldEarned;
         await this.play(battle.awardExperience());
+        // Spoils and quest progress: dropped items, then kills counted toward any quests.
+        for (const item of battle.loot()) game.say(giveItem(game.state, item), 'gold');
+        for (const [monster, count] of Object.entries(battle.kills)) {
+          for (const line of questEvent(game.state, { kind: 'kill', monster, count })) game.say(line, 'gold');
+        }
+        for (const line of questEvent(game.state, { kind: 'check' })) game.say(line, 'gold');
         game.audio.sfx('victory');
         this.refresh();
         game.shell.setMenu([{ key: 'c', label: 'Continue', action: () => this.hooks.onWin() }], 'Victory!');
         return;
+      }
       case 'defeat':
         game.audio.sfx('defeat');
         game.shell.setMenu([{ key: 'c', label: 'Continue', action: () => this.hooks.onDefeat() }], 'Defeat...');

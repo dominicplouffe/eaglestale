@@ -38,15 +38,13 @@ export function sellItem(
   seller: Character,
   source: { inventory: number } | { slot: Slot },
 ): TradeResult {
-  let itemId: string | undefined;
-  if ('inventory' in source) {
-    itemId = seller.inventory[source.inventory];
-    if (itemId) seller.inventory.splice(source.inventory, 1);
-  } else {
-    itemId = seller.equipment[source.slot];
-    if (itemId) delete seller.equipment[source.slot];
-  }
+  const itemId = 'inventory' in source ? seller.inventory[source.inventory] : seller.equipment[source.slot];
   if (!itemId) return fail('Nothing to sell there.');
+  if (content.item(itemId).quest) {
+    return fail(`Dusty Gizzard won't touch the ${content.item(itemId).name}. "That's yours to deal with."`);
+  }
+  if ('inventory' in source) seller.inventory.splice(source.inventory, 1);
+  else delete seller.equipment[source.slot];
   const price = sellPrice(itemId);
   state.gold += price;
   return { ok: true, message: `${seller.name} sells ${content.item(itemId).name} for ${price}g.` };

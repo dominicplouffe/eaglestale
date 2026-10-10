@@ -161,6 +161,11 @@ export class Shell {
     this.keyHandler = fn;
   }
 
+  /** The handler now in place, so a temporary panel can put it back when it closes. */
+  get currentKeyHandler(): KeyHandler | null {
+    return this.keyHandler;
+  }
+
   private onKey(e: KeyboardEvent): void {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement;

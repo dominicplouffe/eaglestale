@@ -25,6 +25,8 @@ export interface ThemeTextures {
   ceiling: Texture;
   /** A doorway arch with a see-through opening. */
   door: Texture;
+  /** A locked door, shut. */
+  doorShut: Texture;
   stairsDown: Texture;
   stairsUpFloor: Texture;
   /** The lit hatch overhead where stairs lead up. */
@@ -215,6 +217,19 @@ function doorway(wall: Paint, door: RGB): Paint {
   return p;
 }
 
+function shutDoor(wall: Paint, door: RGB): Paint {
+  const p = doorway(wall, door);
+  // Fill the opening with planks, then iron bands and a keyhole.
+  p.rect(8, 10, 16, 22, (x) => mul(door, 0.75 + (x % 4 === 0 ? -0.15 : 0.05)));
+  for (const y of [13, 25]) {
+    p.rect(8, y, 16, 2, [58, 52, 60]);
+    p.rect(8, y, 16, 1, [96, 90, 100]);
+  }
+  p.rect(19, 18, 3, 3, [40, 36, 40]);
+  p.rect(20, 19, 1, 3, [14, 12, 20]);
+  return p;
+}
+
 function stairsDown(floor: Paint, rng: Rng): Paint {
   const p = floor.copy();
   // A square opening with steps going down into the dark.
@@ -319,6 +334,7 @@ function build(theme: DungeonTheme): ThemeTextures {
     floorAlt: (floorAlt ?? floor).bake(),
     ceiling: ceiling.bake(),
     door: doorway(wall, parse(theme.door)).bake(),
+    doorShut: shutDoor(wall, parse(theme.door)).bake(),
     stairsDown: stairsDown(floor, rng).bake(),
     stairsUpFloor: lightPool(floor).bake(),
     hatch: hatch(ceiling).bake(),

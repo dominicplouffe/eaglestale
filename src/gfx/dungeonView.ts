@@ -33,7 +33,12 @@ const lightAt = (dist: number, flicker: number): number => Math.max(ambient, Mat
 const levelFor = (light: number, x: number, y: number): number =>
   Math.min(LIGHT_LEVELS, Math.floor(light * LIGHT_LEVELS + BAYER[((y & 3) << 2) | (x & 3)]));
 
+/** What is at a square: normally the level grid, but locks and secrets change as the party plays. */
+export type TileAt = (x: number, y: number) => string;
+
 export interface RayHit {
+  /** The square that stopped the ray ('#' wall, '=' shut door). */
+  tile: string;
   /** Distance to the wall along the view direction (perpendicular, so there's no fish-eye bulge). */
   dist: number;
   /** 0 if the ray crossed an east/west face, 1 for a north/south face. */
@@ -53,13 +58,20 @@ function faceU(posX: number, posY: number, rayX: number, rayY: number, dist: num
 }
 
 /** A door square has an arch on the faces where its passage begins and ends (walls on both sides of it). */
-function hasArch(level: DungeonLevel, x: number, y: number, side: 0 | 1): boolean {
-  const wall = (dx: number, dy: number): boolean => !isWalkable(tileAt(level, x + dx, y + dy));
+function hasArch(at: TileAt, x: number, y: number, side: 0 | 1): boolean {
+  const wall = (dx: number, dy: number): boolean => !isWalkable(at(x + dx, y + dy));
   return side === 0 ? wall(0, -1) && wall(0, 1) : wall(-1, 0) && wall(1, 0);
 }
 
 /** Steps a ray square by square (DDA) from (posX, posY) until it hits a wall. */
-export function castRay(level: DungeonLevel, posX: number, posY: number, rayX: number, rayY: number): RayHit {
+export function castRay(
+  level: DungeonLevel,
+  posX: number,
+  posY: number,
+  rayX: number,
+  rayY: number,
+  at: TileAt = (x, y) => tileAt(level, x, y),
+): RayHit {
   let mapX = Math.floor(posX);
   let mapY = Math.floor(posY);
   const deltaX = rayX === 0 ? 1e30 : Math.abs(1 / rayX);
@@ -81,15 +93,15 @@ export function castRay(level: DungeonLevel, posX: number, posY: number, rayX: n
       side = 1;
     }
     const dist = side === 0 ? sideX - deltaX : sideY - deltaY;
-    const tile = tileAt(level, mapX, mapY);
+    const tile = at(mapX, mapY);
     if (!isWalkable(tile)) {
-      return { dist, side, cellX: mapX, cellY: mapY, u: faceU(posX, posY, rayX, rayY, dist, side), doors };
+      return { tile, dist, side, cellX: mapX, cellY: mapY, u: faceU(posX, posY, rayX, rayY, dist, side), doors };
     }
-    if (tile === '+' && hasArch(level, mapX, mapY, side)) {
+    if (tile === '+' && hasArch(at, mapX, mapY, side)) {
       doors.push({ dist, side, u: faceU(posX, posY, rayX, rayY, dist, side) });
     }
   }
-  return { dist: MAX_STEPS, side: 0, cellX: mapX, cellY: mapY, u: 0, doors };
+  return { tile: '#', dist: MAX_STEPS, side: 0, cellX: mapX, cellY: mapY, u: 0, doors };
 }
 
 export interface DungeonViewState {
@@ -100,6 +112,8 @@ export interface DungeonViewState {
   dir: number;
   /** Facing in radians (0 = north, clockwise), for smooth turns; defaults to `dir`. */
   angle?: number;
+  /** The squares as they are now (locks, secrets); defaults to the level grid. */
+  at?: TileAt;
 }
 
 let image: ImageData | null = null;
@@ -138,6 +152,7 @@ function column(
  */
 export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState, t: number, minLight = 0): void {
   const { level } = v;
+  const at: TileAt = v.at ?? ((x, y) => tileAt(level, x, y));
   ambient = minLight;
   const tex = texturesFor(level.theme);
   if (!image || !pixels) {
@@ -167,7 +182,7 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
     for (let x = 0; x < VIEW_W; x++, wx += stepX, wy += stepY) {
       const cellX = Math.floor(wx);
       const cellY = Math.floor(wy);
-      const tile = tileAt(level, cellX, cellY);
+      const tile = at(cellX, cellY);
       const ti = Math.floor((wy - cellY) * TEX) * TEX + Math.floor((wx - cellX) * TEX);
       const plain = (cellX + cellY) & 1 ? tex.floorAlt : tex.floor;
       const floorTex = tile === '>' ? tex.stairsDown : tile === '<' ? tex.stairsUpFloor : plain;
@@ -182,9 +197,9 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
     const camX = (2 * (x + 0.5)) / VIEW_W - 1;
     const rayX = dirX + planeX * camX;
     const rayY = dirY + planeY * camX;
-    const hit = castRay(level, posX, posY, rayX, rayY);
+    const hit = castRay(level, posX, posY, rayX, rayY, at);
     const featured = ((hit.cellX * 73856093) ^ (hit.cellY * 19349663) ^ (hit.side * 83492791)) >>> 0;
-    const wallTex = featured % FEATURE_EVERY === 0 ? tex.feature[frame] : tex.wall;
+    const wallTex = hit.tile === '=' ? tex.doorShut : featured % FEATURE_EVERY === 0 ? tex.feature[frame] : tex.wall;
     column(buf, x, hit.dist, hit.side, hit.u, wallTex, flicker, false);
     for (let i = hit.doors.length - 1; i >= 0; i--) {
       const d = hit.doors[i];

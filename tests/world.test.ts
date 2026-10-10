@@ -4,7 +4,7 @@ import { content } from '../src/content';
 import { rollEncounter, turn } from '../src/rules/dungeon';
 import { Rng } from '../src/rules/rng';
 import {
-  addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, serialize,
+  addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, serialize, startingState,
 } from '../src/rules/state';
 import { autoAllocate, createCharacter } from '../src/rules/character';
 import { starterParty } from '../src/content/base/story';
@@ -87,7 +87,7 @@ describe('party and saves', () => {
   });
 
   it('round-trips through serialisation and rejects junk', () => {
-    const s = newGameState();
+    const s = startingState();
     s.gold = 77;
     s.roster.push(makeHero('mage', 'Merlin'));
     expect(deserialize(serialize(s))).toEqual({ ok: true, state: s, notes: [] });
@@ -98,13 +98,13 @@ describe('party and saves', () => {
   });
 
   it('repairs saves that refer to content that no longer exists', () => {
-    const s = newGameState();
+    const s = startingState();
     const hero = makeHero('knight', 'Bonk');
     hero.inventory.push('long-lost-relic');
     hero.equipment.trinket = 'retired-charm';
     s.roster.push(hero);
     s.party.push(hero.id, 'ghost-of-a-deleted-hero');
-    s.location = { dungeon: 'roost', level: 0, x: 0, y: 0, dir: 0 }; // (0,0) is solid wall
+    s.location = { dungeon: 'nowhere', level: 0, x: 1, y: 1, dir: 0 }; // a dungeon that doesn't exist
     const r = deserialize(serialize(s));
     if (!r.ok) throw new Error(r.reason);
     expect(r.state.roster[0].inventory).not.toContain('long-lost-relic');
@@ -140,5 +140,22 @@ describe('party and saves', () => {
       const stats = autoAllocate(p.race, p.cls);
       expect(() => createCharacter({ id: p.name, name: p.name, raceId: p.race, classId: p.cls, stats })).not.toThrow();
     }
+  });
+
+  it('migrates version 1 saves: the rebuilt Roost starts fresh and quests begin', () => {
+    const v1 = {
+      version: 1, roster: [makeHero('knight', 'Old', 'human', 'o1')], party: ['o1'], gold: 42,
+      location: { dungeon: 'roost', level: 1, x: 3, y: 3, dir: 0 },
+      flags: { 'roost:0:5,5': true }, explored: { 'roost:0': ['1,1'] }, stepsSinceFight: 0, nextId: 2, won: false,
+    };
+    const r = deserialize(JSON.stringify(v1));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.state.version).toBe(2);
+    expect(r.state.location).toBeNull();
+    expect(r.state.flags).toEqual({});
+    expect(r.state.explored).toEqual({});
+    expect(r.state.gold).toBe(42);
+    expect(r.state.quests['mq-roost']?.status).toBe('active');
+    expect(r.notes.join(' ')).toMatch(/rebuilt/);
   });
 });

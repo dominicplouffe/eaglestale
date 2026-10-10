@@ -4,6 +4,8 @@ import { castCampSpell } from '../src/rules/spells';
 import { Rng } from '../src/rules/rng';
 import { addXp, isAlive } from '../src/rules/character';
 import type { Character } from '../src/rules/types';
+import { content } from '../src/content';
+import { rollEncounter } from '../src/rules/dungeon';
 import { makeHero, standardParty } from './helpers';
 
 function autoOrders(b: Battle): Map<string, Order> {
@@ -152,5 +154,30 @@ describe('camp spells', () => {
     expect(castCampSpell(healer, 'mend', knight)).toMatch(/temple/);
     expect(castCampSpell(healer, 'hailstorm', healer)).toMatch(/can't cast/);
     addXp(healer, 0);
+  });
+});
+
+describe('battle distance', () => {
+  it('random encounters mostly start within reach', () => {
+    const rng = new Rng(11);
+    let groups = 0;
+    let far = 0;
+    for (const level of content.dungeon('roost').levels) {
+      for (let i = 0; i < 500; i++) {
+        const specs = rollEncounter(level, rng);
+        expect(specs[0].distance).toBe(0);
+        groups += specs.length;
+        far += specs.filter((s) => (s.distance ?? 0) > 0).length;
+      }
+    }
+    expect(far / groups).toBeLessThan(0.25);
+  });
+
+  it('ranged monsters close in too, so melee heroes can reach them', () => {
+    const party = standardParty();
+    const b = new Battle(party, [{ monster: 'ghost', count: 1, distance: 1 }], new Rng(3));
+    expect(b.reachableGroups(party[0])).toEqual([]);
+    b.resolveRound(new Map());
+    if (b.outcome === 'ongoing') expect(b.reachableGroups(party[0])).toEqual([0]);
   });
 });
