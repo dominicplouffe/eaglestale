@@ -70,6 +70,9 @@ button { font: inherit; color: inherit; }
 .card .desc { color: var(--dim); font-size: 12px; }
 .stat { display: grid; grid-template-columns: 110px 36px auto auto; gap: 6px; align-items: center; padding: 2px 0; }
 input[type="text"] { background: var(--panel); border: 1px solid var(--line); color: var(--text); font: inherit; padding: 4px 8px; width: 240px; }
+.bigmap { display: block; width: min(100%, 400px); aspect-ratio: 1; margin: 6px auto 0; image-rendering: pixelated; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--dim); }
+.legend .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
 .warn { color: var(--bad); }
 .good { color: var(--good); }
 .gold { color: var(--gold); }
