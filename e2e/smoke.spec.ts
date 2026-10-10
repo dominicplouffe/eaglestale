@@ -67,7 +67,8 @@ test('explore, camp, save, and continue the saved game', async ({ page }) => {
   await page.reload();
   await page.keyboard.press('l');
   await expect(menuTitle(page)).toHaveText('Load which game?');
-  await expect(page.locator('#menu button', { hasText: 'Slot 1: empty' })).toBeDisabled();
+  await expect(page.locator('#menu button', { hasText: 'Slot 1 (empty)' })).toBeDisabled();
+  await expect(page.locator('#overlay .row', { hasText: 'Slot 2' })).toContainText('The Cellars');
   await page.keyboard.press('a');
   await expect(log(page).last()).toHaveText('Game loaded.');
   await expect(page.locator('#location')).toHaveText(/The Cellars/);

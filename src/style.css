@@ -64,6 +64,7 @@ button { font: inherit; color: inherit; }
 .panel h3 { margin: 10px 0 4px; color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
 .row { display: flex; gap: 6px; align-items: center; padding: 3px 0; border-bottom: 1px dotted #3a3060; }
 .row .grow { flex: 1; }
+.row .slot-name { color: var(--gold); min-width: 72px; }
 .row .price { color: var(--gold); min-width: 52px; text-align: right; }
 .row .compare { font-size: 12px; min-width: 120px; text-align: right; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
