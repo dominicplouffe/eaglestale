@@ -1,0 +1,19 @@
+{
+  "name": "eagles-tale",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eagle's Tale - a first-person party-based dungeon crawler for the browser",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}
