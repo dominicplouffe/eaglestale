@@ -1,5 +1,6 @@
 import { content } from '../content/registry';
 import { el } from '../engine/shell';
+import { BUST, drawPortrait } from '../gfx/portrait';
 import {
   FRONT_ROW_SIZE,
   MAX_INVENTORY,
@@ -43,20 +44,33 @@ export function inspectPanel(c: Character, partyIndex: number, onClose: () => vo
   const cls = content.cls(c.classId);
   const next = xpToNext(c);
   const row = partyIndex < FRONT_ROW_SIZE ? 'front row' : 'back row';
+  const portrait = el('canvas');
+  portrait.width = BUST;
+  portrait.height = BUST;
+  drawPortrait(portrait, c, !isAlive(c));
   const root = el(
     'div',
     { class: 'panel' },
     el(
       'div',
       { class: 'row' },
-      el('h2', { class: 'grow', text: c.name }),
+      el(
+        'div',
+        { class: 'inspect-head grow' },
+        portrait,
+        el(
+          'div',
+          {},
+          el('h2', { text: c.name }),
+          el('div', {
+            class: 'gold',
+            text: `${content.race(c.raceId).name} ${cls.name}, level ${c.level}, ${row}${isAlive(c) ? '' : ' (dead)'}`,
+          }),
+          el('div', { class: 'dim', text: `XP ${c.xp}${next ? ` / ${next}` : ' (max level)'}` }),
+        ),
+      ),
       el('button', { class: 'btn small', text: 'Close (Esc)', onclick: onClose }),
     ),
-    el('div', {
-      class: 'gold',
-      text: `${content.race(c.raceId).name} ${cls.name}, level ${c.level}, ${row}${isAlive(c) ? '' : ' (dead)'}`,
-    }),
-    el('div', { class: 'dim', text: `XP ${c.xp}${next ? ` / ${next}` : ' (max level)'}` }),
   );
 
   const equipment = el('div', {}, el('h3', { text: 'Equipment' }));

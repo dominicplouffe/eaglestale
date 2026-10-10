@@ -25,9 +25,20 @@ export type SfxName =
   | 'monsterDeath'
   | 'levelup';
 
+/** What an event did, so the battle screen can animate it. Presentation only; rules never read it. */
+export type BattleFx =
+  | { kind: 'hit'; group: number; target: MonsterInstance; amount: number; crit?: boolean }
+  | { kind: 'death'; group: number; target: MonsterInstance }
+  | { kind: 'cast'; spell: string; groups: number[] }
+  | { kind: 'heal'; hero: string; amount: number }
+  | { kind: 'ward'; spell: string }
+  | { kind: 'partyHit'; group: number; hero: string; amount: number }
+  | { kind: 'monsterMiss'; group: number };
+
 export interface BattleEvent {
   text: string;
   sfx?: SfxName;
+  fx?: BattleFx;
 }
 
 export interface MonsterInstance {
@@ -226,6 +237,7 @@ export class Battle {
     events.push({
       text: `${c.name} ${crit ? 'critically ' : ''}hits ${withArticle(group.def)} for ${damage}.`,
       sfx: crit ? 'crit' : 'hit',
+      fx: { kind: 'hit', group: gi, target, amount: damage, crit },
     });
     this.damageMonster(group, target, damage, events);
   }
@@ -241,7 +253,11 @@ export class Battle {
     if (target.hp > 0) return;
     this.xpEarned += group.def.xp;
     this.goldEarned += Math.max(0, this.rng.roll(group.def.gold));
-    events.push({ text: `${capitalize(withArticle(group.def))} is defeated!`, sfx: 'monsterDeath' });
+    events.push({
+      text: `${capitalize(withArticle(group.def))} is defeated!`,
+      sfx: 'monsterDeath',
+      fx: { kind: 'death', group: this.groups.indexOf(group), target },
+    });
   }
 
   private cast(c: Character, order: Extract<Order, { kind: 'cast' }>, events: BattleEvent[]): void {
@@ -256,7 +272,11 @@ export class Battle {
     if (e.kind === 'heal') {
       const ally = this.party.find((p) => p.id === order.ally && isAlive(p)) ?? c;
       const healed = applyHeal(ally, rollSpellDice(c, spell, this.rng));
-      events.push({ text: `${c.name} casts ${spell.name}: ${ally.name} recovers ${healed} HP.`, sfx: 'heal' });
+      events.push({
+        text: `${c.name} casts ${spell.name}: ${ally.name} recovers ${healed} HP.`,
+        sfx: 'heal',
+        fx: { kind: 'heal', hero: ally.id, amount: healed },
+      });
       return;
     }
     if (e.kind === 'defense') {
@@ -267,7 +287,7 @@ export class Battle {
       }
       const sameStrength = e.amount === this.partyBuff.amount;
       this.partyBuff = { amount: e.amount, turns: sameStrength ? Math.max(e.turns, this.partyBuff.turns) : e.turns };
-      events.push({ text: `${c.name} casts ${spell.name}. The party feels sturdier!`, sfx: 'spell' });
+      events.push({ text: `${c.name} casts ${spell.name}. The party feels sturdier!`, sfx: 'spell', fx: { kind: 'ward', spell: spell.id } });
       return;
     }
 
@@ -276,7 +296,8 @@ export class Battle {
       events.push({ text: `${c.name} casts ${spell.name} at thin air.`, sfx: 'spell' });
       return;
     }
-    events.push({ text: `${c.name} casts ${spell.name}!`, sfx: 'spell' });
+    const struck = [...new Set(targets.map((t) => this.groups.indexOf(t.group)))];
+    events.push({ text: `${c.name} casts ${spell.name}!`, sfx: 'spell', fx: { kind: 'cast', spell: spell.id, groups: struck } });
     if (e.kind === 'sleep') {
       let slept = 0;
       for (const { member } of targets) {
@@ -291,7 +312,11 @@ export class Battle {
     }
     for (const { group, member } of targets) {
       const damage = Math.max(1, rollSpellDice(c, spell, this.rng));
-      events.push({ text: `${capitalize(withArticle(group.def))} takes ${damage}.`, sfx: 'hit' });
+      events.push({
+        text: `${capitalize(withArticle(group.def))} takes ${damage}.`,
+        sfx: 'hit',
+        fx: { kind: 'hit', group: this.groups.indexOf(group), target: member, amount: damage },
+      });
       this.damageMonster(group, member, damage, events);
     }
   }
@@ -322,7 +347,11 @@ export class Battle {
     c.inventory.splice(at, 1);
     const restored = applyItemUse(ally, item.use);
     const what = item.use.kind === 'heal' ? 'HP' : 'SP';
-    events.push({ text: `${c.name} uses ${item.name} on ${ally.name}: +${restored} ${what}.`, sfx: 'heal' });
+    events.push({
+      text: `${c.name} uses ${item.name} on ${ally.name}: +${restored} ${what}.`,
+      sfx: 'heal',
+      fx: { kind: 'heal', hero: ally.id, amount: restored },
+    });
   }
 
   private run(c: Character, events: BattleEvent[]): void {
@@ -348,17 +377,13 @@ export class Battle {
     for (let i = 0; i < (group.def.actions ?? 1); i++) {
       const attack = this.rng.pick(group.def.attacks);
       if (group.distance > 0 && !attack.ranged) return;
-      this.monsterAttack(group.def, attack, defending, events);
+      this.monsterAttack(gi, attack, defending, events);
       if (!this.party.some(isAlive)) return;
     }
   }
 
-  private monsterAttack(
-    def: MonsterDef,
-    attack: MonsterAttack,
-    defending: Set<string>,
-    events: BattleEvent[],
-  ): void {
+  private monsterAttack(gi: number, attack: MonsterAttack, defending: Set<string>, events: BattleEvent[]): void {
+    const def = this.groups[gi].def;
     const alive = this.party.filter(isAlive);
     let targets: Character[];
     if (attack.all) {
@@ -374,7 +399,11 @@ export class Battle {
       const roll = this.rng.int(1, 20);
       const hit = roll === 20 || (roll !== 1 && roll + def.toHit >= 10 + armor);
       if (!hit) {
-        events.push({ text: `${capitalize(withArticle(def))} ${attack.verb} ${t.name} but misses.`, sfx: 'miss' });
+        events.push({
+          text: `${capitalize(withArticle(def))} ${attack.verb} ${t.name} but misses.`,
+          sfx: 'miss',
+          fx: { kind: 'monsterMiss', group: gi },
+        });
         continue;
       }
       const damage = Math.max(1, this.rng.roll(attack.dice));
@@ -382,6 +411,7 @@ export class Battle {
       events.push({
         text: `${capitalize(withArticle(def))} ${attack.verb} ${t.name} for ${damage}.`,
         sfx: 'monsterHit',
+        fx: { kind: 'partyHit', group: gi, hero: t.id, amount: damage },
       });
       if (t.hp === 0) events.push({ text: `${t.name} collapses.`, sfx: 'death' });
     }

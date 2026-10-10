@@ -42,7 +42,12 @@ src/
   rules/       Pure game logic with no DOM: characters, combat, spells, shop, dungeon helpers, game state
   content/     Game data. registry.ts is the lookup; base/ is the built-in campaign (a "content pack")
   engine/      Shell (DOM layout, menus, keyboard, render loop), Game (state + screens), Audio (WebAudio synth)
-  gfx/         Pixel-art sprites, first-person renderer, minimap, town/title/battle scenes, portraits
+  gfx/         Graphics, all drawn in code:
+                 dungeonView.ts  first-person raycaster (textured walls, floors, doorways, torchlight, smooth movement)
+                 textures.ts     wall/floor/ceiling textures painted from a level's theme colours
+                 art.ts          32x32 drawings (art/monsters.ts) with recolourable materials for variants
+                 portrait.ts     layered head-and-shoulders portraits (art/portraits.ts)
+                 scenes.ts       town, title and victory scenes; font.ts the pixel font; minimap.ts the auto-map
   screens/     title, town, guild, shop, temple, inn, dungeon, combat, victory
   ui/          Reusable panels (party sidebar, character sheet)
 tests/         Vitest: content integrity, character rules, shop, combat (incl. balance checks), mazes and saves
@@ -56,9 +61,14 @@ Everything the player sees as *content* is data. Add or change it without touchi
 - **Classes, races, items, spells, monsters, shops**: edit the files in `src/content/base/`. For example, a new class is one object
   in `classes.ts`; a new spell is one object in `spells.ts` and an entry in a class's `spellbook`.
   Items are restricted by `proficiency` tags that classes list in `canUse`.
+- **Monster looks**: a monster's `sprite` names a drawing in `src/gfx/art/monsters.ts` (32 rows of 32 palette keys).
+  Its `palette` can recolour a drawing's named `materials` for a variant, e.g. the Cult Mage is the cultist drawing
+  with `{ robe: '#3a4aa8', trim: '#e8e8f0' }`; highlight and shadow tones are derived automatically.
+- **Spell looks**: a spell's `look` (`bolt`, `fire`, `ice`, `holy`, `sleep`, `song`, `ward`, `heal`) picks its battle effect.
 - **Dungeons**: `dungeons.ts` builds levels with `generateMaze` (seeded, so each level is stable) or from a hand-written `grid`
   (`#` wall, `.` floor, `+` door, `<` `>` stairs, letters are special tiles defined in the level's `specials`).
   Special tiles can be messages, treasure, traps, fountains and scripted fights (one with `finale: true` ends the game).
+  A level's `theme` colours (and `style`: `brick`, `stone` or `rune`) decide how its textures are painted.
 - **Whole expansions**: create a `ContentPack` (see `src/rules/types.ts`) and register it in `src/content/index.ts`.
   Later packs can override earlier content by reusing ids.
 - **Story text**: `src/content/base/story.ts`.

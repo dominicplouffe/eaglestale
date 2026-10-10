@@ -10,10 +10,18 @@ export type LogStyle = '' | 'good' | 'bad' | 'gold' | 'dim' | 'story';
 export type KeyHandler = (e: KeyboardEvent) => boolean;
 export type DrawFn = (ctx: CanvasRenderingContext2D, t: number) => void;
 
+/** The game's native resolution; every screen draws into a canvas this size. */
+export const FRAME_W = 320;
+export const FRAME_H = 180;
+
 /** Owns the page's DOM regions and the canvas render loop. Screens draw through this. */
 export class Shell {
-  readonly canvas = document.getElementById('view') as HTMLCanvasElement;
-  readonly ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
+  /** Screens draw into this off-screen frame at native resolution... */
+  private readonly frame = Object.assign(document.createElement('canvas'), { width: FRAME_W, height: FRAME_H });
+  readonly ctx = this.frame.getContext('2d') as CanvasRenderingContext2D;
+  /** ...which is copied to the visible canvas, enlarged by a whole number (see `fitDisplay`). */
+  private readonly display = document.getElementById('view') as HTMLCanvasElement;
+  private readonly displayCtx = this.display.getContext('2d') as CanvasRenderingContext2D;
   readonly minimap = document.getElementById('minimap') as HTMLCanvasElement;
   readonly partyEl = document.getElementById('party') as HTMLElement;
   private readonly logEl = document.getElementById('log') as HTMLElement;
@@ -30,11 +38,33 @@ export class Shell {
   constructor() {
     this.ctx.imageSmoothingEnabled = false;
     window.addEventListener('keydown', (e) => this.onKey(e));
+    new ResizeObserver(() => this.fitDisplay()).observe(this.display.parentElement as HTMLElement);
+    this.fitDisplay();
     const loop = (ms: number): void => {
-      if (this.draw) this.draw(this.ctx, ms / 1000);
+      if (this.draw) {
+        this.draw(this.ctx, ms / 1000);
+        this.displayCtx.imageSmoothingEnabled = false;
+        this.displayCtx.drawImage(this.frame, 0, 0, this.display.width, this.display.height);
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  }
+
+  /**
+   * Pixel art scaled by a fraction (say 2.66x) gets uneven pixels. Instead the frame is enlarged by
+   * the next whole number with hard edges, and the browser shrinks that smoothly to fit the page
+   * ("sharp bilinear"): every pixel comes out the same size and the edges stay crisp.
+   */
+  private fitDisplay(): void {
+    const box = this.display.parentElement as HTMLElement;
+    const fit = Math.min(box.clientWidth / FRAME_W, box.clientHeight / FRAME_H);
+    const k = Math.max(1, Math.ceil(fit * (window.devicePixelRatio || 1)));
+    if (this.display.width === FRAME_W * k) return;
+    this.display.width = FRAME_W * k;
+    this.display.height = FRAME_H * k;
+    this.displayCtx.imageSmoothingEnabled = false;
+    this.displayCtx.drawImage(this.frame, 0, 0, this.display.width, this.display.height);
   }
 
   /** Registers a key that works on every screen (e.g. mute). */

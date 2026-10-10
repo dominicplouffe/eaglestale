@@ -1,4 +1,5 @@
 import type { Game, Screen } from '../engine/game';
+import { drawText } from '../gfx/font';
 import { drawTitleScene } from '../gfx/scenes';
 import { story } from '../content/base/story';
 import { enterSavedGame, startNewGame } from './town';
@@ -13,14 +14,7 @@ export const titleScreen: Screen = {
     audio.music('title');
     shell.setDraw((ctx, t) => {
       drawTitleScene(ctx, t);
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 26px monospace';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#0e0a1c';
-      ctx.strokeText("EAGLE'S TALE", 160, 160);
-      ctx.fillStyle = '#e8c34a';
-      ctx.fillText("EAGLE'S TALE", 160, 160);
-      ctx.textAlign = 'start';
+      drawText(ctx, "EAGLE'S TALE", 160, 149, { color: '#e8c34a', outline: '#0e0a1c', scale: 3, align: 'center' });
     });
     shell.setMenu(
       [

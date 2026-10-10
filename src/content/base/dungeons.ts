@@ -26,7 +26,7 @@ export const dungeons: DungeonDef[] = [
     name: 'The Roost Below',
     levels: [
       level('The Cellars', cellars, {
-        theme: { wall: '#6b5a48', floor: '#3a3028', ceiling: '#1e1a16', door: '#8a5a2a' },
+        theme: { wall: '#6b5a48', floor: '#3a3028', ceiling: '#1e1a16', door: '#8a5a2a', style: 'brick' },
         encounterRate: 0.08,
         encounters: [
           { monster: 'rat', min: 2, max: 5, weight: 5 },
@@ -45,7 +45,7 @@ export const dungeons: DungeonDef[] = [
         },
       }),
       level('The Mouldering Crypts', crypts, {
-        theme: { wall: '#4a5a52', floor: '#26302c', ceiling: '#121816', door: '#6a6a50' },
+        theme: { wall: '#4a5a52', floor: '#26302c', ceiling: '#121816', door: '#6a6a50', style: 'stone' },
         encounterRate: 0.09,
         encounters: [
           { monster: 'skeleton', min: 1, max: 3, weight: 5 },
@@ -65,7 +65,7 @@ export const dungeons: DungeonDef[] = [
         },
       }),
       level('The Roost Sanctum', sanctum, {
-        theme: { wall: '#5a4a6a', floor: '#2a2236', ceiling: '#14101c', door: '#7a4a6a' },
+        theme: { wall: '#5a4a6a', floor: '#2a2236', ceiling: '#14101c', door: '#7a4a6a', style: 'rune' },
         encounterRate: 0.1,
         encounters: [
           { monster: 'boneknight', min: 1, max: 2, weight: 4 },

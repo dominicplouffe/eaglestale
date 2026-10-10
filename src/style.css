@@ -21,7 +21,7 @@ button { font: inherit; color: inherit; }
 #titlebar button { background: var(--panel); border: 1px solid var(--line); padding: 3px 10px; cursor: pointer; }
 #stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 8px; min-height: 0; }
 #viewport { position: relative; background: #000; border: 3px solid var(--line); min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-#view { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+#view { width: 100%; height: 100%; object-fit: contain; image-rendering: auto; }
 #overlay { position: absolute; inset: 0; background: rgba(14, 10, 28, 0.94); overflow: auto; padding: 12px; }
 #overlay[hidden] { display: none; }
 #inspect { position: absolute; inset: 0; background: rgba(14, 10, 28, 0.97); overflow: auto; padding: 12px; }
@@ -44,13 +44,17 @@ button { font: inherit; color: inherit; }
 .menu-item kbd { color: var(--gold); margin-right: 6px; }
 .btn.small { padding: 1px 6px; font-size: 12px; }
 .btn.active { background: var(--accent); }
-.party-card { background: var(--panel); border: 2px solid var(--line); padding: 2px 6px; display: grid; grid-template-columns: 36px 1fr; gap: 6px; align-items: center; }
+.party-card { background: var(--panel); border: 2px solid var(--line); padding: 2px 6px; display: grid; grid-template-columns: 48px 1fr; gap: 6px; align-items: center; }
 .party-card { cursor: pointer; }
 .party-card:hover { border-color: var(--accent); }
 .party-card.active { border-color: var(--gold); }
+.party-card.hurt { background: #5a1a24; border-color: var(--bad); }
+.party-card.healed { background: #1f4a2a; border-color: var(--good); }
 .party-card.dead { opacity: 0.55; }
 .party-card.row-back { margin-left: 18px; }
-.party-card canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+.party-card canvas { width: 48px; height: 48px; image-rendering: pixelated; }
+.inspect-head { display: flex; gap: 10px; align-items: center; }
+.inspect-head canvas { width: 96px; height: 96px; image-rendering: pixelated; border: 2px solid var(--line); }
 .party-card .name { font-weight: bold; font-size: 13px; }
 .party-card .sub { color: var(--dim); font-size: 11px; }
 .bar { height: 4px; background: #3a2a40; margin-top: 2px; }

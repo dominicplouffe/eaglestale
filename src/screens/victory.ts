@@ -1,5 +1,6 @@
 import { story } from '../content/base/story';
 import type { Game, Screen } from '../engine/game';
+import { drawText } from '../gfx/font';
 import { drawTitleScene } from '../gfx/scenes';
 import { dungeonScreen } from './dungeon';
 import { titleScreen } from './title';
@@ -14,15 +15,8 @@ export const victoryScreen: Screen = {
     audio.sfx('victory');
     game.save();
     shell.setDraw((ctx, t) => {
-      drawTitleScene(ctx, t);
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 20px monospace';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#0e0a1c';
-      ctx.strokeText('THE EAGLE RETURNS', 160, 160);
-      ctx.fillStyle = '#e8c34a';
-      ctx.fillText('THE EAGLE RETURNS', 160, 160);
-      ctx.textAlign = 'start';
+      drawTitleScene(ctx, t, true);
+      drawText(ctx, 'THE EAGLE RETURNS', 160, 142, { color: '#e8c34a', outline: '#0e0a1c', scale: 2, align: 'center' });
     });
     shell.setMenu(
       [

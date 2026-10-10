@@ -93,6 +93,8 @@ export interface SpellDef {
   cost: number;
   target: SpellTarget;
   effect: SpellEffect;
+  /** How the spell looks in battle. Defaults by effect: damage 'bolt', sleep 'sleep', heal 'heal', defense 'ward'. */
+  look?: 'bolt' | 'fire' | 'ice' | 'holy' | 'sleep' | 'song' | 'ward' | 'heal';
 }
 
 export interface MonsterAttack {
@@ -162,6 +164,11 @@ export interface DungeonTheme {
   floor: string;
   ceiling: string;
   door: string;
+  /**
+   * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
+   * blocks) or 'rune' (dressed stone with glowing runes). Defaults to 'brick'.
+   */
+  style?: 'brick' | 'stone' | 'rune';
 }
 
 export interface DungeonDef {
