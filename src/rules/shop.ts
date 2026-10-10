@@ -1,5 +1,5 @@
 import { content } from '../content/registry';
-import { MAX_INVENTORY, canUse } from './character';
+import { MAX_INVENTORY, canUse, equipItem } from './character';
 import type { GameState } from './state';
 import type { Character, Slot } from './types';
 
@@ -20,6 +20,16 @@ export function buyItem(state: GameState, buyer: Character, itemId: string): Tra
   buyer.inventory.push(itemId);
   const warning = canUse(buyer, item) ? '' : ` (Warning: ${buyer.name} can't use this.)`;
   return { ok: true, message: `${buyer.name} buys ${item.name} for ${item.price}g.${warning}` };
+}
+
+/** Buys an item and equips it straight away; whatever it replaces goes to the pack. */
+export function buyAndEquip(state: GameState, buyer: Character, itemId: string): TradeResult {
+  const item = content.item(itemId);
+  if (!item.slot || !canUse(buyer, item)) return fail(`${buyer.name} can't equip ${item.name}.`);
+  const bought = buyItem(state, buyer, itemId);
+  if (!bought.ok) return bought;
+  equipItem(buyer, buyer.inventory.length - 1);
+  return { ok: true, message: `${buyer.name} buys and equips ${item.name} for ${item.price}g.` };
 }
 
 /** Sells an inventory item, or the equipped item in a slot. */

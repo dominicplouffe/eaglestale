@@ -148,6 +148,24 @@ export const UNARMED: Dice = [1, 2];
 
 export const weaponDice = (c: Character): Dice => weaponOf(c)?.damage ?? UNARMED;
 
+/** Average damage of a normal weapon hit, as combat rolls it (Strength only counts in melee). */
+export function averageDamage(c: Character): number {
+  const [count, sides, bonus = 0] = weaponDice(c);
+  const strength = weaponOf(c)?.ranged ? 0 : mod(c.stats.str);
+  return Math.max(1, (count * (sides + 1)) / 2 + bonus + strength);
+}
+
+/** How defense, to-hit and average damage would change if `c` wore or wielded `item`. */
+export function equipDelta(c: Character, item: ItemDef): { def: number; hit: number; dmg: number } | null {
+  if (!item.slot) return null;
+  const trial: Character = { ...c, equipment: { ...c.equipment, [item.slot]: item.id } };
+  return {
+    def: defense(trial) - defense(c),
+    hit: toHit(trial) - toHit(c),
+    dmg: averageDamage(trial) - averageDamage(c),
+  };
+}
+
 export function knownSpells(c: Character): SpellDef[] {
   return content
     .cls(c.classId)

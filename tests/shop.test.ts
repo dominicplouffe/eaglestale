@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buyItem, sellItem, sellPrice } from '../src/rules/shop';
+import { equipDelta } from '../src/rules/character';
+import { content } from '../src/content';
+import { buyAndEquip, buyItem, sellItem, sellPrice } from '../src/rules/shop';
 import { newGameState } from '../src/rules/state';
 import { makeHero } from './helpers';
 
@@ -34,5 +36,24 @@ describe('shop', () => {
     k.inventory.push('draught');
     expect(sellItem(s, k, { inventory: 0 }).ok).toBe(true);
     expect(sellItem(s, k, { inventory: 0 }).ok).toBe(false);
+  });
+
+  it('buys and equips in one go, moving the old item to the pack', () => {
+    const s = newGameState();
+    const k = makeHero('knight');
+    s.gold = 1000;
+    const r = buyAndEquip(s, k, 'battleaxe');
+    expect(r.ok).toBe(true);
+    expect(k.equipment.weapon).toBe('battleaxe');
+    expect(k.inventory).toContain('longsword');
+    expect(buyAndEquip(s, k, 'draught').ok).toBe(false);
+    expect(buyAndEquip(s, makeHero('mage'), 'plate').ok).toBe(false); // mages can't wear plate
+  });
+
+  it('compares gear against what is equipped', () => {
+    const k = makeHero('knight');
+    expect(equipDelta(k, content.item('plate'))?.def).toBe(4); // leather 2 -> plate 6
+    expect(equipDelta(k, content.item('dagger'))?.dmg).toBeLessThan(0); // longsword -> dagger
+    expect(equipDelta(k, content.item('draught'))).toBeNull();
   });
 });
