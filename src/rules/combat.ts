@@ -83,6 +83,8 @@ export class Battle {
   round = 1;
   xpEarned = 0;
   goldEarned = 0;
+  /** Monsters defeated, by monster id (for quests). */
+  readonly kills: Record<string, number> = {};
   private partyBuff = { amount: 0, turns: 0 };
 
   constructor(
@@ -253,6 +255,7 @@ export class Battle {
     target.hp -= damage;
     target.asleep = 0;
     if (target.hp > 0) return;
+    this.kills[group.def.id] = (this.kills[group.def.id] ?? 0) + 1;
     this.xpEarned += group.def.xp;
     this.goldEarned += Math.max(0, this.rng.roll(group.def.gold));
     events.push({
@@ -420,6 +423,18 @@ export class Battle {
   }
 
   // ---- Aftermath -----------------------------------------------------------
+
+  /** Items dropped by the defeated, rolled once after a victory. */
+  loot(): string[] {
+    const items: string[] = [];
+    for (const g of this.groups) {
+      const fallen = this.kills[g.def.id] ?? 0;
+      for (const drop of g.def.drops ?? []) {
+        for (let i = 0; i < fallen; i++) if (this.rng.chance(drop.chance)) items.push(drop.item);
+      }
+    }
+    return items;
+  }
 
   /** Splits XP among survivors after a victory. The caller awards the gold. */
   awardExperience(): BattleEvent[] {

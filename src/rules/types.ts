@@ -76,6 +76,8 @@ export interface ItemDef {
   /** Ranged weapons can strike from the back row and at distant groups. */
   ranged?: boolean;
   use?: ItemUse;
+  /** Keys and other story items: they can't be sold or dropped. */
+  quest?: boolean;
 }
 
 export type SpellTarget = 'enemy' | 'group' | 'allEnemies' | 'ally' | 'party';
@@ -124,6 +126,8 @@ export interface MonsterDef {
   sprite: string;
   /** Overrides for the sprite palette, to reuse one drawing for several monsters. */
   palette?: Record<string, string>;
+  /** Items each one may drop when the party wins (e.g. rat tails for a bounty). */
+  drops?: { item: string; chance: number }[];
 }
 
 export interface EncounterEntry {
@@ -133,18 +137,56 @@ export interface EncounterEntry {
   weight: number;
 }
 
+/** What a won fight, a found treasure or a finished quest gives the party. */
+export interface Reward {
+  gold?: number;
+  item?: string;
+  /** One of Aquila's feathers (see FeatherDef). */
+  feather?: string;
+  /** Experience shared among the living. */
+  xp?: number;
+}
+
+/**
+ * Special squares. Most fire when the party steps on them; `lock` and `secret` squares block the way
+ * until opened or found. `flag` names a story flag set when the special is done (a fight won, a
+ * treasure taken, a talk had), which quests can wait for.
+ */
 export type Special =
-  | { kind: 'message'; text: string }
+  | { kind: 'message'; text: string; flag?: string }
   | { kind: 'trap'; dice: Dice; text: string }
-  | { kind: 'treasure'; text: string; gold?: number; item?: string }
+  | { kind: 'treasure'; text: string; gold?: number; item?: string; feather?: string; flag?: string }
   | { kind: 'fountain'; text: string }
   | {
       kind: 'fight';
       text: string;
       groups: { monster: string; count: number }[];
-      reward?: { gold?: number; item?: string };
+      reward?: Reward;
       /** Ends the game with the victory screen when won. */
       finale?: boolean;
+      flag?: string;
+    }
+  | {
+      /** A door that stays shut until the party carries `key` (an item) and/or `feathers` feathers. */
+      kind: 'lock';
+      text: string;
+      opened: string;
+      key?: string;
+      feathers?: number;
+    }
+  | {
+      /** Looks like wall. Walking into it opens a passage; a rogue in the party senses a draught nearby. */
+      kind: 'secret';
+      text: string;
+    }
+  | {
+      /** Someone to talk to. The first time, they say `text` (and may start `quest`); afterwards `after`. */
+      kind: 'talk';
+      name: string;
+      text: string;
+      after: string;
+      quest?: string;
+      flag?: string;
     };
 
 export interface DungeonLevel {
@@ -184,6 +226,61 @@ export interface ShopDef {
   stock: string[];
 }
 
+/** One of Aquila's great feathers, the main quest's collectibles. */
+export interface FeatherDef {
+  id: string;
+  name: string;
+  /** Who held it, for the journal. */
+  desc: string;
+}
+
+/** How Talonreach recovers as feathers are returned to the Eagle Tower. */
+export interface CityStage {
+  /** Feathers offered at the tower needed to reach this stage. */
+  feathers: number;
+  /** Told when the stage is reached, and summarised in the journal. */
+  text: string;
+  /** Items the Emporium starts selling. */
+  stock?: string[];
+}
+
+export type QuestGoal =
+  | { kind: 'kill'; monster: string; count: number }
+  /** Carry `count` of an item (in any hero's pack). Bounty items are handed over at the end. */
+  | { kind: 'collect'; item: string; count: number }
+  /** A story flag, set by a special (a fight won, a treasure taken, someone talked to). */
+  | { kind: 'flag'; flag: string }
+  /** Feathers found so far. */
+  | { kind: 'feathers'; count: number }
+  /** Feathers returned to the Eagle Tower. */
+  | { kind: 'offered'; count: number };
+
+export interface QuestStep {
+  /** The journal line while this step is current. */
+  text: string;
+  goal: QuestGoal;
+}
+
+export interface QuestDef {
+  id: string;
+  name: string;
+  kind: 'main' | 'side';
+  /**
+   * 'start': active from the beginning. 'board': offered on the Guild's bounty board.
+   * 'given': started by someone (a talk special) or by another quest's `next`.
+   */
+  source: 'start' | 'board' | 'given';
+  summary: string;
+  /** Before it can be offered on the board. */
+  requires?: { quests?: string[]; feathers?: number };
+  steps: QuestStep[];
+  reward?: Reward;
+  /** Said when the quest is finished. */
+  done: string;
+  /** Quests that start when this one is finished (how the main story moves on). */
+  next?: string[];
+}
+
 /** A bundle of game content. Register more packs to extend the game without touching engine code. */
 export interface ContentPack {
   id: string;
@@ -194,6 +291,10 @@ export interface ContentPack {
   monsters?: MonsterDef[];
   dungeons?: DungeonDef[];
   shops?: ShopDef[];
+  quests?: QuestDef[];
+  feathers?: FeatherDef[];
+  /** Replaces the city's stages if given (later packs can extend the story). */
+  cityStages?: CityStage[];
 }
 
 export interface Character {

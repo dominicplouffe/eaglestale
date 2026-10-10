@@ -1,0 +1,211 @@
+import { content } from '../content/registry';
+import { MAX_INVENTORY, addXp, isAlive } from './character';
+import type { GameState } from './state';
+import type { Character, CityStage, QuestDef, QuestGoal, Reward } from './types';
+
+/**
+ * Quests, feathers and the city's recovery. Everything here is driven by content (QuestDef,
+ * FeatherDef, CityStage), so new chapters and side missions are data, not code.
+ *
+ * Every function takes the state and returns the lines to show in the log.
+ */
+
+export interface QuestProgress {
+  step: number;
+  /** Kills counted toward the current step's goal. */
+  count: number;
+  /** 'ready': a bounty whose goal is met, waiting to be handed in at the Guild. */
+  status: 'active' | 'ready' | 'done';
+}
+
+/** Something that happened which might move a quest along. */
+export type QuestEvent =
+  | { kind: 'kill'; monster: string; count: number }
+  | { kind: 'flag'; flag: string }
+  /** Feathers found or offered, or items gained: goals are simply re-checked. */
+  | { kind: 'check' };
+
+/** Most bounties a party can have taken at once. */
+export const MAX_BOUNTIES = 3;
+
+const party = (s: GameState): Character[] =>
+  s.party.map((id) => s.roster.find((c) => c.id === id)).filter((c): c is Character => !!c);
+
+export function itemCount(s: GameState, itemId: string): number {
+  return party(s).reduce((n, c) => n + c.inventory.filter((i) => i === itemId).length, 0);
+}
+
+/** How far along a goal is: `have` of `need`. */
+export function goalProgress(s: GameState, goal: QuestGoal, count: number): { have: number; need: number } {
+  switch (goal.kind) {
+    case 'kill':
+      return { have: Math.min(count, goal.count), need: goal.count };
+    case 'collect':
+      return { have: Math.min(itemCount(s, goal.item), goal.count), need: goal.count };
+    case 'flag':
+      return { have: s.story[goal.flag] ? 1 : 0, need: 1 };
+    case 'feathers':
+      return { have: Math.min(s.feathers.length, goal.count), need: goal.count };
+    case 'offered':
+      return { have: Math.min(s.offered, goal.count), need: goal.count };
+  }
+}
+
+const met = (s: GameState, goal: QuestGoal, count: number): boolean => {
+  const p = goalProgress(s, goal, count);
+  return p.have >= p.need;
+};
+
+export const activeQuests = (s: GameState): QuestDef[] =>
+  Object.entries(s.quests)
+    .filter(([id, p]) => p.status !== 'done' && content.quests.has(id))
+    .map(([id]) => content.quest(id));
+
+export function startQuest(s: GameState, id: string): string[] {
+  if (s.quests[id] || !content.quests.has(id)) return [];
+  const q = content.quest(id);
+  s.quests[id] = { step: 0, count: 0, status: 'active' };
+  return [`New ${q.kind === 'main' ? 'quest' : 'task'}: ${q.name}. ${q.steps[0]?.text ?? ''}`.trim(), ...advance(s, id)];
+}
+
+/** Starts every 'start' quest the save doesn't have yet (new games, and old saves meeting new content). */
+export function startOpeningQuests(s: GameState): string[] {
+  return [...content.quests.values()].filter((q) => q.source === 'start').flatMap((q) => startQuest(s, q.id));
+}
+
+/** Moves a quest through every step whose goal is already met. */
+function advance(s: GameState, id: string): string[] {
+  const q = content.quest(id);
+  const p = s.quests[id];
+  const out: string[] = [];
+  while (p.status === 'active' && p.step < q.steps.length && met(s, q.steps[p.step].goal, p.count)) {
+    p.step += 1;
+    p.count = 0;
+    if (p.step < q.steps.length) out.push(`${q.name}: ${q.steps[p.step].text}`);
+  }
+  if (p.status === 'active' && p.step >= q.steps.length) {
+    if (q.source === 'board') {
+      p.status = 'ready';
+      out.push(`${q.name}: done! Report to the Guild for your reward.`);
+    } else out.push(...finish(s, id));
+  }
+  return out;
+}
+
+function finish(s: GameState, id: string): string[] {
+  const q = content.quest(id);
+  s.quests[id].status = 'done';
+  const out = [q.done, ...giveReward(s, q.reward)];
+  for (const next of q.next ?? []) out.push(...startQuest(s, next));
+  return out;
+}
+
+/** Tells every active quest what happened. */
+export function questEvent(s: GameState, ev: QuestEvent): string[] {
+  if (ev.kind === 'flag') s.story[ev.flag] = true;
+  const out: string[] = [];
+  for (const q of activeQuests(s)) {
+    const p = s.quests[q.id];
+    if (p.status !== 'active') continue;
+    const goal = q.steps[p.step]?.goal;
+    if (ev.kind === 'kill' && goal?.kind === 'kill' && goal.monster === ev.monster) p.count += ev.count;
+    out.push(...advance(s, q.id));
+  }
+  return out;
+}
+
+// ---- Bounties -----------------------------------------------------------------
+
+/** Board quests that can be taken now. */
+export function availableBounties(s: GameState): QuestDef[] {
+  return [...content.quests.values()].filter(
+    (q) =>
+      q.source === 'board' &&
+      !s.quests[q.id] &&
+      (q.requires?.quests ?? []).every((r) => s.quests[r]?.status === 'done') &&
+      s.feathers.length >= (q.requires?.feathers ?? 0),
+  );
+}
+
+export const takenBounties = (s: GameState): QuestDef[] =>
+  activeQuests(s).filter((q) => q.source === 'board');
+
+export function takeBounty(s: GameState, id: string): string[] {
+  if (takenBounties(s).length >= MAX_BOUNTIES) return [`You can only carry ${MAX_BOUNTIES} bounties at once.`];
+  return startQuest(s, id);
+}
+
+/** Hands in a finished bounty: collected items are handed over and the reward paid. */
+export function turnIn(s: GameState, id: string): string[] {
+  const p = s.quests[id];
+  if (!p || p.status !== 'ready') return [];
+  const q = content.quest(id);
+  for (const step of q.steps) {
+    if (step.goal.kind !== 'collect') continue;
+    let left = step.goal.count;
+    for (const c of party(s)) {
+      while (left > 0) {
+        const at = c.inventory.indexOf(step.goal.item);
+        if (at < 0) break;
+        c.inventory.splice(at, 1);
+        left -= 1;
+      }
+    }
+  }
+  return finish(s, id);
+}
+
+// ---- Rewards, feathers and the city ------------------------------------------------
+
+/** Gives an item to the first living hero with room, or says it was left behind. */
+export function giveItem(s: GameState, itemId: string): string {
+  const item = content.item(itemId);
+  const carrier = party(s).find((c) => isAlive(c) && c.inventory.length < MAX_INVENTORY);
+  if (!carrier) return `Everyone's pack is full, so the ${item.name} is left behind.`;
+  carrier.inventory.push(itemId);
+  return `${carrier.name} takes the ${item.name}.`;
+}
+
+export function giveReward(s: GameState, r: Reward | undefined): string[] {
+  if (!r) return [];
+  const out: string[] = [];
+  if (r.gold) {
+    s.gold += r.gold;
+    out.push(`+${r.gold} gold.`);
+  }
+  if (r.item) out.push(giveItem(s, r.item));
+  if (r.xp) {
+    const living = party(s).filter(isAlive);
+    const share = Math.max(1, Math.floor(r.xp / Math.max(1, living.length)));
+    out.push(`+${share} XP each.`);
+    for (const c of living) out.push(...addXp(c, share));
+  }
+  if (r.feather) out.push(...gainFeather(s, r.feather));
+  return out;
+}
+
+export function gainFeather(s: GameState, id: string): string[] {
+  if (s.feathers.includes(id)) return [];
+  s.feathers.push(id);
+  const total = content.feathers.size;
+  return [`You recover ${content.feather(id).name}! (${s.feathers.length} of ${total} feathers)`, ...questEvent(s, { kind: 'check' })];
+}
+
+export function cityStage(s: GameState): CityStage | undefined {
+  return [...content.cityStages].reverse().find((st) => st.feathers <= s.offered);
+}
+
+/** Offers every carried feather at the Eagle Tower. Returns what changed in the city. */
+export function offerFeathers(s: GameState): string[] {
+  if (s.feathers.length <= s.offered) return [];
+  const before = s.offered;
+  s.offered = s.feathers.length;
+  const out = content.cityStages.filter((st) => st.feathers > before && st.feathers <= s.offered).map((st) => st.text);
+  return [...out, ...questEvent(s, { kind: 'check' })];
+}
+
+/** What the Emporium sells now: its base stock plus anything the city's recovery has brought in. */
+export function shopStock(s: GameState, base: string[]): string[] {
+  const extra = content.cityStages.filter((st) => st.feathers <= s.offered).flatMap((st) => st.stock ?? []);
+  return [...new Set([...base, ...extra])];
+}

@@ -1,6 +1,7 @@
 import { content } from '../content/registry';
 import { MAX_PARTY } from './character';
 import { isWalkable, tileAt } from './dungeon';
+import { startOpeningQuests, type QuestProgress } from './quests';
 import { SLOTS, type Character } from './types';
 
 export interface DungeonPosition {
@@ -26,9 +27,17 @@ export interface GameState {
   stepsSinceFight: number;
   nextId: number;
   won: boolean;
+  /** Quests taken or started, by quest id. */
+  quests: Record<string, QuestProgress>;
+  /** Ids of Aquila's feathers the party has recovered. */
+  feathers: string[];
+  /** How many of them have been returned to the Eagle Tower (the city's recovery). */
+  offered: number;
+  /** Story flags set by specials (bosses beaten, people met), which quests wait for. */
+  story: Record<string, true>;
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const STARTING_GOLD = 500;
 
 export function newGameState(): GameState {
@@ -43,7 +52,18 @@ export function newGameState(): GameState {
     stepsSinceFight: 0,
     nextId: 1,
     won: false,
+    quests: {},
+    feathers: [],
+    offered: 0,
+    story: {},
   };
+}
+
+/** A fresh game, with the opening quests already in the journal. */
+export function startingState(): GameState {
+  const s = newGameState();
+  startOpeningQuests(s);
+  return s;
 }
 
 export const partyMembers = (s: GameState): Character[] =>
@@ -89,8 +109,19 @@ type SaveData = Record<string, unknown>;
 /**
  * Upgrades a save from version N to N + 1. When the save format changes, bump SAVE_VERSION and add a
  * step here, e.g. `1: (old) => ({ ...old, newField: defaultValue })`, so existing saves keep loading.
+ * A step can add a line to `notes` to tell the player what changed.
  */
-const MIGRATIONS: Record<number, (old: SaveData) => SaveData> = {};
+const MIGRATIONS: Record<number, (old: SaveData, notes: string[]) => SaveData> = {
+  // Version 2 adds quests and feathers, and rebuilds the Roost: its old squares no longer line up,
+  // so the party returns to town and the Roost's map and one-time events start fresh.
+  1: (old, notes) => {
+    const notRoost = <T,>(rec: unknown): Record<string, T> =>
+      Object.fromEntries(Object.entries(isObject(rec) ? rec : {}).filter(([k]) => !k.startsWith('roost:'))) as Record<string, T>;
+    const loc = isObject(old.location) && old.location.dungeon === 'roost' ? null : old.location;
+    notes.push('The Roost Below has been rebuilt since you last played: its maps start fresh, and your party waits in town.');
+    return { ...old, location: loc ?? null, flags: notRoost(old.flags), explored: notRoost(old.explored), quests: {}, feathers: [], offered: 0, story: {} };
+  },
+};
 
 const DAMAGED = 'The save file is damaged.';
 
@@ -104,14 +135,17 @@ export function deserialize(raw: string): LoadResult {
   if (!data || typeof data !== 'object' || typeof data.version !== 'number') return { ok: false, reason: DAMAGED };
   let version = data.version;
   if (version > SAVE_VERSION) return { ok: false, reason: 'The save is from a newer version of the game.' };
+  const notes: string[] = [];
   while (version < SAVE_VERSION) {
     const step = MIGRATIONS[version];
     if (!step) return { ok: false, reason: `Saves from version ${version} of the game can no longer be loaded.` };
-    data = { ...step(data), version: version + 1 };
+    data = { ...step(data, notes), version: version + 1 };
     version += 1;
   }
   if (!hasStateShape(data)) return { ok: false, reason: DAMAGED };
-  return checkContent(data);
+  const result = checkContent(data);
+  if (result.ok) result.notes.unshift(...notes);
+  return result;
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -134,6 +168,10 @@ function hasStateShape(d: SaveData): d is SaveData & GameState {
     typeof d.stepsSinceFight === 'number' &&
     isObject(d.flags) &&
     isObject(d.explored) &&
+    isObject(d.quests) &&
+    Array.isArray(d.feathers) &&
+    typeof d.offered === 'number' &&
+    isObject(d.story) &&
     (d.location === null || isObject(d.location))
   );
 }
@@ -158,6 +196,9 @@ function checkContent(state: GameState): LoadResult {
     if (lost > 0) notes.push(`${lost} of ${c.name}'s items no longer exist and were removed.`);
   }
   state.party = state.party.filter((id) => state.roster.some((c) => c.id === id)).slice(0, MAX_PARTY);
+  state.feathers = state.feathers.filter((id) => content.feathers.has(id));
+  // New content may bring new opening quests (e.g. a new chapter): start them for old saves too.
+  notes.push(...startOpeningQuests(state).filter((line) => line.startsWith('New')));
   const loc = state.location;
   if (loc) {
     const level = content.dungeons.get(loc.dungeon)?.levels[loc.level];
