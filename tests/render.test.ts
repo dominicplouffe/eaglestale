@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { content } from '../src/content';
+import { ART_SIZE, artDef } from '../src/gfx/art';
 import { castRay } from '../src/gfx/dungeonView';
 import { textWidth } from '../src/gfx/font';
 import type { DungeonLevel } from '../src/rules/types';
@@ -59,5 +61,30 @@ describe('pixel font', () => {
     expect(textWidth('A')).toBe(5);
     expect(textWidth('AA')).toBe(11);
     expect(textWidth('AA', 3)).toBe(33);
+  });
+});
+
+describe('monster art', () => {
+  it('every monster has a drawing, and recolours name real materials', () => {
+    for (const m of content.monsters.values()) {
+      const def = artDef(m.sprite);
+      expect(def, `${m.id} draws "${m.sprite}"`).toBeDefined();
+      for (const key of Object.keys(m.palette ?? {})) {
+        const known = key.length === 1 || !!def?.materials?.[key];
+        expect(known, `${m.id} recolours unknown material "${key}"`).toBe(true);
+      }
+    }
+  });
+
+  it('drawings are 32x32 and every pixel has a colour', () => {
+    for (const m of content.monsters.values()) {
+      const def = artDef(m.sprite);
+      if (!def) continue;
+      expect(def.rows).toHaveLength(ART_SIZE);
+      for (const row of def.rows) {
+        expect(row.length).toBe(def.symmetric ? ART_SIZE / 2 : ART_SIZE);
+        for (const ch of row) if (ch !== '.') expect(def.colors[ch], `${m.sprite} key "${ch}"`).toBeDefined();
+      }
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { MONSTER_ART } from './art/monsters';
 import { mixRGB, parseHex, ramp, toHex } from './colors';
 
 /**
@@ -26,8 +27,10 @@ export function registerArt(defs: Record<string, ArtDef>): void {
   for (const [name, def] of Object.entries(defs)) registry.set(name, def);
 }
 
+registerArt(MONSTER_ART);
+
 export const hasArt = (name: string): boolean => registry.has(name);
-export const artNames = (): string[] => [...registry.keys()];
+export const artDef = (name: string): ArtDef | undefined => registry.get(name);
 
 export interface ArtStyle {
   /** Material name -> new base colour, or palette key -> exact colour. */
