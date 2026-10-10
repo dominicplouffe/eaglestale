@@ -334,7 +334,7 @@ class DungeonView {
         game.say(special.text, 'story');
         game.audio.sfx('encounter');
         this.fight(
-          special.groups.map((g, i) => ({ monster: g.monster, count: g.count, distance: i === 0 ? 0 : 1 })),
+          special.groups.map((g) => ({ ...g })),
           () => this.fightWon(special, flag),
         );
         return;

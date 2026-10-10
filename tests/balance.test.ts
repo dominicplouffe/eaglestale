@@ -31,17 +31,19 @@ function partyAt(level: number) {
   for (const c of p) { addXp(c, xpForLevel(level, content.cls(c.classId).xpMult), new Rng(level)); c.hp = c.maxHp; c.sp = c.maxSp; }
   return p;
 }
-function rate(level: number, groups: { monster: string; count: number }[], n = 40): number {
+type Groups = { monster: string; count: number; distance?: number }[];
+function rate(level: number, groups: Groups, n = 40): number {
   let wins = 0;
   for (let seed = 1; seed <= n; seed++) {
-    const b = new Battle(partyAt(level), groups.map((g, i) => ({ ...g, distance: i === 0 ? 0 : 1 })), new Rng(seed));
+    // The same groups, at the same distances, as the fight in the dungeon.
+    const b = new Battle(partyAt(level), groups.map((g) => ({ ...g })), new Rng(seed));
     for (let r = 0; r < 60 && b.outcome === 'ongoing'; r++) b.resolveRound(orders(b));
     if (b.outcome === 'victory') wins++;
   }
   return wins / n;
 }
-const bossFight = (level: number, key: string): { monster: string; count: number }[] =>
-  (content.dungeon('roost').levels[level].specials[key] as { groups: { monster: string; count: number }[] }).groups;
+const bossFight = (level: number, key: string): Groups =>
+  (content.dungeon('roost').levels[level].specials[key] as { groups: Groups }).groups;
 
 describe('boss balance', () => {
   it('the Kobold Chieftain needs a level 3 party', () => {

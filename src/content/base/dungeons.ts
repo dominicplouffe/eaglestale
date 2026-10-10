@@ -218,7 +218,7 @@ export const dungeons: DungeonDef[] = [
           B: {
             kind: 'fight',
             text: 'Among the stacked bones stands the Bone Warden, ringing a grave-bell. A golden feather is pinned to its breastplate.',
-            groups: [{ monster: 'bonewarden', count: 1 }, { monster: 'skeleton', count: 3 }],
+            groups: [{ monster: 'bonewarden', count: 1 }, { monster: 'skeleton', count: 2 }],
             reward: { gold: 300, feather: 'grave' },
             flag: 'warden-defeated',
           },

@@ -160,7 +160,8 @@ export type Special =
   | {
       kind: 'fight';
       text: string;
-      groups: { monster: string; count: number }[];
+      /** Every group starts within melee range unless given a `distance` (1 = one step away). */
+      groups: { monster: string; count: number; distance?: number }[];
       reward?: Reward;
       /** Ends the game with the victory screen when won. */
       finale?: boolean;
