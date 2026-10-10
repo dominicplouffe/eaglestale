@@ -1,10 +1,25 @@
 import { content } from '../content/registry';
 import type { Game } from '../engine/game';
 import { el } from '../engine/shell';
-import { applyItemUse, canUse, equipItem, isAlive, knownSpells, unequipItem, xpToNext } from '../rules/character';
+import {
+  MAX_INVENTORY,
+  canUse,
+  equipItem,
+  giveItem,
+  isAlive,
+  knownSpells,
+  unequipItem,
+  useItemOn,
+  xpToNext,
+} from '../rules/character';
 import { castCampSpell, isCampSpell } from '../rules/spells';
-import { SLOTS } from '../rules/types';
+import { SLOTS, type Character } from '../rules/types';
 import { statBlock } from './inspect';
+
+/** A choice of target in progress, shown right under the row that started it. */
+type Picking =
+  | { kind: 'cast'; ownerId: string; spellId: string }
+  | { kind: 'use' | 'give'; ownerId: string; index: number };
 
 interface SheetOptions {
   startId?: string;
@@ -14,7 +29,7 @@ interface SheetOptions {
 /** Full-screen character sheet: stats, equipment, pack and spells for each party member. */
 export function openCharSheet(game: Game, opts: SheetOptions): void {
   let selectedId = opts.startId ?? game.party[0]?.id;
-  let casting: { casterId: string; spellId: string } | null = null;
+  let picking: Picking | null = null;
 
   const redraw = (): void => {
     game.refreshParty(selectedId);
@@ -32,7 +47,7 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
           text: p.name,
           onclick: () => {
             selectedId = p.id;
-            casting = null;
+            picking = null;
             redraw();
           },
         }),
@@ -43,6 +58,25 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
 
     const c = party.find((p) => p.id === selectedId);
     if (!c) return root;
+
+    const done = (): void => {
+      picking = null;
+      redraw();
+    };
+    const targetRow = (
+      label: string,
+      choices: { who: Character; note?: string; disabled?: boolean }[],
+      pick: (who: Character) => void,
+    ): HTMLElement => {
+      const row = el('div', { class: 'tabs' }, el('span', { class: 'gold', text: label }));
+      for (const { who, note, disabled } of choices) {
+        row.append(
+          el('button', { class: 'btn small', text: note ? `${who.name} (${note})` : who.name, disabled, onclick: () => pick(who) }),
+        );
+      }
+      row.append(el('button', { class: 'btn small', text: 'Cancel', onclick: done }));
+      return row;
+    };
     const cls = content.cls(c.classId);
     const next = xpToNext(c);
 
@@ -81,7 +115,7 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
     stats.append(right);
     root.append(stats);
 
-    root.append(el('h3', { text: `Pack (${c.inventory.length}/8)` }));
+    root.append(el('h3', { text: `Pack (${c.inventory.length}/${MAX_INVENTORY})` }));
     if (c.inventory.length === 0) root.append(el('div', { class: 'dim', text: 'Empty.' }));
     c.inventory.forEach((id, index) => {
       const item = content.item(id);
@@ -107,15 +141,22 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
           el('button', {
             class: 'btn small',
             text: 'Use',
+            title: 'Choose who drinks it',
             onclick: () => {
-              if (!isAlive(c)) {
-                game.say(`${c.name} is in no condition to drink anything.`, 'bad');
-                return;
-              }
-              c.inventory.splice(index, 1);
-              if (item.use) applyItemUse(c, item.use);
-              game.audio.sfx('heal');
-              game.say(`${c.name} uses ${item.name}.`, 'good');
+              picking = { kind: 'use', ownerId: c.id, index };
+              redraw();
+            },
+          }),
+        );
+      }
+      if (party.length > 1) {
+        row.append(
+          el('button', {
+            class: 'btn small',
+            text: 'Give',
+            title: "Move it to another hero's pack",
+            onclick: () => {
+              picking = { kind: 'give', ownerId: c.id, index };
               redraw();
             },
           }),
@@ -133,6 +174,39 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
         }),
       );
       root.append(row);
+
+      if (picking?.kind === 'use' && picking.ownerId === c.id && picking.index === index && item.use) {
+        const sp = item.use.kind === 'restoreSp';
+        const choices = party.map((t) => ({
+          who: t,
+          note: !isAlive(t) ? 'dead' : sp ? `SP ${t.sp}/${t.maxSp}` : `HP ${t.hp}/${t.maxHp}`,
+          disabled: !isAlive(t),
+        }));
+        root.append(
+          targetRow(`Use ${item.name} on: `, choices, (t) => {
+            const r = useItemOn(c, index, t);
+            game.audio.sfx(r.ok ? 'heal' : 'error');
+            game.say(r.message, r.ok ? 'good' : 'bad');
+            done();
+          }),
+        );
+      }
+      if (picking?.kind === 'give' && picking.ownerId === c.id && picking.index === index) {
+        const choices = party
+          .filter((t) => t !== c)
+          .map((t) => {
+            const full = t.inventory.length >= MAX_INVENTORY;
+            return { who: t, note: full ? 'pack full' : undefined, disabled: full };
+          });
+        root.append(
+          targetRow(`Give ${item.name} to: `, choices, (t) => {
+            const err = giveItem(c, index, t);
+            game.audio.sfx(err ? 'error' : 'buy');
+            game.say(err ?? `${c.name} hands the ${item.name} to ${t.name}.`, err ? 'bad' : 'good');
+            done();
+          }),
+        );
+      }
     });
 
     const spells = knownSpells(c);
@@ -152,35 +226,24 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
               text: 'Cast',
               disabled: c.sp < s.cost || !isAlive(c),
               onclick: () => {
-                casting = { casterId: c.id, spellId: s.id };
+                picking = { kind: 'cast', ownerId: c.id, spellId: s.id };
                 redraw();
               },
             }),
           );
         }
         root.append(row);
-      }
-    }
-
-    if (casting && casting.casterId === c.id) {
-      const spellId = casting.spellId;
-      const row = el('div', { class: 'tabs' }, el('span', { class: 'gold', text: `Cast ${content.spell(spellId).name} on: ` }));
-      for (const t of party) {
-        row.append(
-          el('button', {
-            class: 'btn small',
-            text: t.name,
-            onclick: () => {
-              const msg = castCampSpell(c, spellId, t);
+        if (picking?.kind === 'cast' && picking.ownerId === c.id && picking.spellId === s.id) {
+          const choices = party.map((t) => ({ who: t, note: isAlive(t) ? `HP ${t.hp}/${t.maxHp}` : 'dead' }));
+          root.append(
+            targetRow(`Cast ${s.name} on: `, choices, (t) => {
               game.audio.sfx('heal');
-              game.say(msg, 'good');
-              casting = null;
-              redraw();
-            },
-          }),
-        );
+              game.say(castCampSpell(c, s.id, t), 'good');
+              done();
+            }),
+          );
+        }
       }
-      root.append(row);
     }
     return root;
   };

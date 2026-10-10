@@ -25,12 +25,14 @@ export function startNewGame(game: Game): void {
 }
 
 export function enterSavedGame(game: Game): void {
-  if (!game.load()) {
-    game.say('The save file is missing or from an incompatible version.', 'bad');
+  const result = game.load();
+  if (!result.ok) {
+    game.say(result.reason, 'bad');
     return;
   }
   game.go(game.state.location ? dungeonScreen : townScreen);
   game.say('Game loaded.', 'good');
+  for (const note of result.notes) game.say(note, 'dim');
 }
 
 export const townScreen: Screen = {
@@ -54,7 +56,7 @@ function showMenu(game: Game): void {
       { key: 'i', label: 'The Drowsy Hen Inn', action: () => game.go(innScreen) },
       { key: 'p', label: 'Party sheet', disabled: game.party.length === 0, action: () => sheet(game) },
       { key: 'd', label: 'Descend into the Roost Below', action: () => descend(game) },
-      { key: 's', label: 'Save game', action: () => { game.save(); game.say('Game saved.', 'good'); } },
+      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
       { key: 'q', label: 'Quit to title', action: () => game.go(titleScreen) },
     ],
     `Gold: ${state.gold}`,

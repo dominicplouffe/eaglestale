@@ -2,13 +2,33 @@ import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
 import { el } from '../engine/shell';
 import { drawPlace } from '../gfx/scenes';
-import { MAX_INVENTORY, canUse } from '../rules/character';
-import { buyItem, sellItem, sellPrice, type TradeResult } from '../rules/shop';
-import { SLOTS } from '../rules/types';
+import { MAX_INVENTORY, canUse, equipDelta } from '../rules/character';
+import { buyAndEquip, buyItem, sellItem, sellPrice, type TradeResult } from '../rules/shop';
+import { SLOTS, type Character, type ItemDef } from '../rules/types';
 import { itemStats } from '../ui/inspect';
 import { townScreen } from './town';
 
 const SHOP_ID = 'emporium';
+
+/** "+2 def, -1 hit" compared with what the hero has on now, coloured by whether it's an upgrade. */
+function comparison(c: Character, item: ItemDef): HTMLElement | null {
+  const d = equipDelta(c, item);
+  if (!d) return null;
+  const parts: string[] = [];
+  const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
+  if (d.def) parts.push(`${signed(d.def)} def`);
+  if (d.hit) parts.push(`${signed(d.hit)} hit`);
+  if (d.dmg) parts.push(`${signed(Math.round(d.dmg * 10) / 10)} dmg`);
+  const values = [d.def, d.hit, d.dmg];
+  const better = values.some((v) => v > 0) && values.every((v) => v >= 0);
+  const worse = values.some((v) => v < 0) && values.every((v) => v <= 0);
+  const current = item.slot ? c.equipment[item.slot] : undefined;
+  return el('span', {
+    class: `compare${better ? ' good' : worse ? ' warn' : ' dim'}`,
+    text: parts.length ? parts.join(', ') : 'no change',
+    title: `Compared with ${current ? content.item(current).name : 'nothing'} in the ${item.slot} slot`,
+  });
+}
 
 export const shopScreen: Screen = {
   enter(game: Game) {
@@ -69,21 +89,35 @@ export const shopScreen: Screen = {
         for (const id of shop.stock) {
           const item = content.item(id);
           const usable = canUse(buyer, item);
-          root.append(
-            el(
-              'div',
-              { class: 'row' },
-              el('span', { class: `grow${usable ? '' : ' dim'}`, text: item.name, title: item.desc }),
-              el('span', { class: 'dim', text: `${itemStats(item)}${usable ? '' : ' (cannot use)'}` }),
-              el('span', { class: 'price', text: `${item.price}g` }),
+          const cantBuy = game.state.gold < item.price || buyer.inventory.length >= MAX_INVENTORY;
+          const row = el(
+            'div',
+            { class: 'row' },
+            el('span', { class: `grow${usable ? '' : ' dim'}`, text: item.name, title: item.desc }),
+            el('span', { class: 'dim', text: `${itemStats(item)}${usable ? '' : ' (cannot use)'}` }),
+          );
+          const compare = usable ? comparison(buyer, item) : null;
+          if (compare) row.append(compare);
+          row.append(
+            el('span', { class: 'price', text: `${item.price}g` }),
+            el('button', {
+              class: 'btn small',
+              text: 'Buy',
+              disabled: cantBuy,
+              onclick: () => report(buyItem(game.state, buyer, id)),
+            }),
+          );
+          if (item.slot && usable) {
+            row.append(
               el('button', {
                 class: 'btn small',
-                text: 'Buy',
-                disabled: game.state.gold < item.price || buyer.inventory.length >= MAX_INVENTORY,
-                onclick: () => report(buyItem(game.state, buyer, id)),
+                text: 'Buy & equip',
+                disabled: cantBuy,
+                onclick: () => report(buyAndEquip(game.state, buyer, id)),
               }),
-            ),
-          );
+            );
+          }
+          root.append(row);
         }
       } else {
         root.append(el('h3', { text: 'Equipped' }));

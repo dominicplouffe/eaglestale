@@ -30,17 +30,25 @@ export const templeScreen: Screen = {
         const row = el('div', { class: 'row' }, el('span', { class: 'grow', text: `${c.name}  HP ${c.hp}/${c.maxHp}${isAlive(c) ? '' : '  (dead)'}` }));
         if (!isAlive(c)) {
           const cost = reviveCost(c.level);
+          // Short of the fee, the temple takes whatever gold is left (if any) and revives at 1 HP.
           const charity = game.state.gold < cost;
+          const offering = game.state.gold;
           row.append(
-            el('span', { class: 'price', text: charity ? 'charity' : `${cost}g` }),
+            el('span', { class: 'price', text: charity ? (offering > 0 ? `${offering}g` : 'charity') : `${cost}g` }),
             el('button', {
               class: 'btn small',
               text: 'Revive',
-              title: charity ? 'You cannot afford a donation, so the temple takes pity (revives at 1 HP)' : '',
+              title: charity ? `You cannot cover the ${cost}g donation, so the temple accepts what you have (revives at 1 HP)` : '',
               onclick: () => {
                 if (charity) {
+                  game.state.gold = 0;
                   c.hp = 1;
-                  game.say(`The priest takes pity and revives ${c.name} for free. Barely. (1 HP)`, 'good');
+                  game.say(
+                    offering > 0
+                      ? `The priest accepts your last ${offering}g and revives ${c.name}. Barely. (1 HP)`
+                      : `The priest takes pity and revives ${c.name} for free. Barely. (1 HP)`,
+                    'good',
+                  );
                 } else {
                   game.state.gold -= cost;
                   c.hp = Math.max(1, Math.floor(c.maxHp / 2));

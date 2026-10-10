@@ -1,10 +1,11 @@
 import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
+import { BATTLE_SPEEDS, battleSpeed } from '../engine/settings';
 import type { LogStyle, MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W } from '../gfx/dungeonView';
 import { drawBattleBackdrop } from '../gfx/scenes';
 import { drawSprite } from '../gfx/sprites';
-import { isAlive, knownSpells } from '../rules/character';
+import { FRONT_ROW_SIZE, isAlive, knownSpells } from '../rules/character';
 import { Battle, type BattleEvent, type EncounterSpec, type Order } from '../rules/combat';
 import { gameRng } from '../rules/rng';
 import { canCast } from '../rules/spells';
@@ -16,7 +17,6 @@ export interface BattleHooks {
   onDefeat: () => void;
 }
 
-const EVENT_DELAY_MS = 420;
 const SPRITE_PX = 16;
 const MAX_STACK = 3;
 
@@ -55,7 +55,9 @@ class CombatScreen implements Screen {
       return false;
     });
     const names = this.battle.groups.map((_, i) => this.groupLabel(i)).join(', ');
-    game.say(`Battle! ${names} block your way.`, 'bad');
+    const groups = this.battle.groups;
+    const single = groups.length === 1 && groups[0].members.length === 1;
+    game.say(`Battle! ${names} ${single ? 'blocks' : 'block'} your way.`, 'bad');
     this.beginRound();
   }
 
@@ -175,7 +177,7 @@ class CombatScreen implements Screen {
         },
       });
     }
-    const row = b.party.indexOf(c) < 3 ? 'front' : 'back';
+    const row = b.party.indexOf(c) < FRONT_ROW_SIZE ? 'front' : 'back';
     this.game.shell.setMenu(items, `${c.name} (${row} row) - HP ${c.hp}/${c.maxHp}${c.maxSp ? ` SP ${c.sp}` : ''}`);
   }
 
@@ -250,7 +252,9 @@ class CombatScreen implements Screen {
       if (e.sfx) game.audio.sfx(e.sfx);
       if (e.sfx === 'monsterHit' || e.sfx === 'crit') this.shakeUntil = performance.now() + 160;
       game.refreshParty();
-      if (!this.fast) await sleep(EVENT_DELAY_MS);
+      // Read each time, so changing the speed mid-battle takes effect at once.
+      const delay = BATTLE_SPEEDS[battleSpeed()];
+      if (!this.fast && delay > 0) await sleep(delay);
     }
   }
 

@@ -1,5 +1,7 @@
+import { content } from '../content/registry';
 import { MAX_PARTY } from './character';
-import type { Character } from './types';
+import { isWalkable, tileAt } from './dungeon';
+import { SLOTS, type Character } from './types';
 
 export interface DungeonPosition {
   dungeon: string;
@@ -78,12 +80,91 @@ export function serialize(s: GameState): string {
   return JSON.stringify(s);
 }
 
-export function deserialize(raw: string): GameState | null {
+export type LoadResult =
+  | { ok: true; state: GameState; /** Repairs made while loading, worth telling the player. */ notes: string[] }
+  | { ok: false; reason: string };
+
+type SaveData = Record<string, unknown>;
+
+/**
+ * Upgrades a save from version N to N + 1. When the save format changes, bump SAVE_VERSION and add a
+ * step here, e.g. `1: (old) => ({ ...old, newField: defaultValue })`, so existing saves keep loading.
+ */
+const MIGRATIONS: Record<number, (old: SaveData) => SaveData> = {};
+
+const DAMAGED = 'The save file is damaged.';
+
+export function deserialize(raw: string): LoadResult {
+  let data: SaveData;
   try {
-    const data = JSON.parse(raw) as GameState;
-    if (data.version !== SAVE_VERSION || !Array.isArray(data.roster)) return null;
-    return data;
+    data = JSON.parse(raw) as SaveData;
   } catch {
-    return null;
+    return { ok: false, reason: DAMAGED };
   }
+  if (!data || typeof data !== 'object' || typeof data.version !== 'number') return { ok: false, reason: DAMAGED };
+  let version = data.version;
+  if (version > SAVE_VERSION) return { ok: false, reason: 'The save is from a newer version of the game.' };
+  while (version < SAVE_VERSION) {
+    const step = MIGRATIONS[version];
+    if (!step) return { ok: false, reason: `Saves from version ${version} of the game can no longer be loaded.` };
+    data = { ...step(data), version: version + 1 };
+    version += 1;
+  }
+  if (!hasStateShape(data)) return { ok: false, reason: DAMAGED };
+  return checkContent(data);
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+function hasStateShape(d: SaveData): d is SaveData & GameState {
+  return (
+    Array.isArray(d.roster) &&
+    d.roster.every(
+      (c: unknown) =>
+        isObject(c) &&
+        ['id', 'name', 'raceId', 'classId'].every((k) => typeof c[k] === 'string') &&
+        ['level', 'xp', 'hp', 'maxHp', 'sp', 'maxSp'].every((k) => typeof c[k] === 'number') &&
+        isObject(c.stats) &&
+        isObject(c.equipment) &&
+        Array.isArray(c.inventory),
+    ) &&
+    Array.isArray(d.party) &&
+    typeof d.gold === 'number' &&
+    typeof d.nextId === 'number' &&
+    typeof d.stepsSinceFight === 'number' &&
+    isObject(d.flags) &&
+    isObject(d.explored) &&
+    (d.location === null || isObject(d.location))
+  );
+}
+
+/** Makes sure the save only refers to content this version of the game has, repairing what it safely can. */
+function checkContent(state: GameState): LoadResult {
+  const notes: string[] = [];
+  for (const c of state.roster) {
+    if (!content.races.has(c.raceId) || !content.classes.has(c.classId)) {
+      return { ok: false, reason: `${c.name}'s race or class no longer exists in this version of the game.` };
+    }
+    const inventory = c.inventory.filter((id) => content.items.has(id));
+    let lost = c.inventory.length - inventory.length;
+    c.inventory = inventory;
+    for (const slot of SLOTS) {
+      const id = c.equipment[slot];
+      if (id !== undefined && !content.items.has(id)) {
+        delete c.equipment[slot];
+        lost += 1;
+      }
+    }
+    if (lost > 0) notes.push(`${lost} of ${c.name}'s items no longer exist and were removed.`);
+  }
+  state.party = state.party.filter((id) => state.roster.some((c) => c.id === id)).slice(0, MAX_PARTY);
+  const loc = state.location;
+  if (loc) {
+    const level = content.dungeons.get(loc.dungeon)?.levels[loc.level];
+    if (!level || !isWalkable(tileAt(level, loc.x, loc.y))) {
+      state.location = null;
+      notes.push('That part of the dungeon has changed, so the party is back in town.');
+    }
+  }
+  return { ok: true, state, notes };
 }

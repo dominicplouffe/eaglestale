@@ -148,6 +148,24 @@ export const UNARMED: Dice = [1, 2];
 
 export const weaponDice = (c: Character): Dice => weaponOf(c)?.damage ?? UNARMED;
 
+/** Average damage of a normal weapon hit, as combat rolls it (Strength only counts in melee). */
+export function averageDamage(c: Character): number {
+  const [count, sides, bonus = 0] = weaponDice(c);
+  const strength = weaponOf(c)?.ranged ? 0 : mod(c.stats.str);
+  return Math.max(1, (count * (sides + 1)) / 2 + bonus + strength);
+}
+
+/** How defense, to-hit and average damage would change if `c` wore or wielded `item`. */
+export function equipDelta(c: Character, item: ItemDef): { def: number; hit: number; dmg: number } | null {
+  if (!item.slot) return null;
+  const trial: Character = { ...c, equipment: { ...c.equipment, [item.slot]: item.id } };
+  return {
+    def: defense(trial) - defense(c),
+    hit: toHit(trial) - toHit(c),
+    dmg: averageDamage(trial) - averageDamage(c),
+  };
+}
+
 export function knownSpells(c: Character): SpellDef[] {
   return content
     .cls(c.classId)
@@ -193,6 +211,35 @@ function levelUp(c: Character, rng: Rng): string {
 export function restoreFully(c: Character): void {
   c.hp = c.maxHp;
   c.sp = c.maxSp;
+}
+
+/** Moves the pack item at `index` from one hero to another. Returns an error message, or null on success. */
+export function giveItem(from: Character, index: number, to: Character): string | null {
+  const itemId = from.inventory[index];
+  if (!itemId) return 'Nothing to give.';
+  if (from === to) return null;
+  if (to.inventory.length >= MAX_INVENTORY) return `${to.name}'s pack is full.`;
+  from.inventory.splice(index, 1);
+  to.inventory.push(itemId);
+  return null;
+}
+
+/**
+ * Uses the consumable at `index` in `owner`'s pack on `target` outside combat.
+ * The item is only spent if it actually restores something.
+ */
+export function useItemOn(owner: Character, index: number, target: Character): { ok: boolean; message: string } {
+  const itemId = owner.inventory[index];
+  const item = itemId ? content.item(itemId) : undefined;
+  if (!item?.use) return { ok: false, message: `${item?.name ?? 'That'} can't be used.` };
+  if (!isAlive(target)) return { ok: false, message: `${target.name} is beyond any potion. Try the temple.` };
+  const what = item.use.kind === 'heal' ? 'HP' : 'SP';
+  const full = item.use.kind === 'heal' ? target.hp >= target.maxHp : target.sp >= target.maxSp;
+  if (full) return { ok: false, message: `${target.name} is already at full ${what}.` };
+  owner.inventory.splice(index, 1);
+  const restored = applyItemUse(target, item.use);
+  const who = owner === target ? `${owner.name} drinks` : `${owner.name} gives ${target.name}`;
+  return { ok: true, message: `${who} the ${item.name}: +${restored} ${what}.` };
 }
 
 /** Applies a consumable's effect to `target` and returns the HP or SP actually restored. */

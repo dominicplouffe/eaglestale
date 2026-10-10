@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../src/content';
 import {
-  addXp, createCharacter, defense, equipItem, knownSpells, meetsRequirements, unequipItem, xpForLevel,
+  MAX_INVENTORY, addXp, createCharacter, defense, equipItem, giveItem, knownSpells, meetsRequirements, unequipItem,
+  useItemOn, xpForLevel,
 } from '../src/rules/character';
 import { Rng } from '../src/rules/rng';
 import { makeHero } from './helpers';
@@ -89,5 +90,48 @@ describe('progression', () => {
       const stats = { str: 14, iq: 14, dex: 14, con: 14, lck: 14 };
       expect(() => createCharacter({ id: cls.id, name: cls.name, raceId: 'human', classId: cls.id, stats })).not.toThrow();
     }
+  });
+});
+
+describe('sharing items', () => {
+  it('gives a pack item to another hero', () => {
+    const a = makeHero('knight', 'A');
+    const b = makeHero('mage', 'B');
+    a.inventory.push('draught');
+    const at = a.inventory.indexOf('draught');
+    expect(giveItem(a, at, b)).toBeNull();
+    expect(a.inventory).not.toContain('draught');
+    expect(b.inventory).toContain('draught');
+  });
+
+  it("refuses when the receiver's pack is full", () => {
+    const a = makeHero('knight', 'A');
+    const b = makeHero('mage', 'B');
+    a.inventory.push('draught');
+    while (b.inventory.length < MAX_INVENTORY) b.inventory.push('dagger');
+    expect(giveItem(a, a.inventory.indexOf('draught'), b)).toMatch(/full/);
+    expect(a.inventory).toContain('draught');
+  });
+
+  it('uses a potion on another hero and spends it', () => {
+    const a = makeHero('knight', 'A');
+    const b = makeHero('mage', 'B');
+    a.inventory.push('draught');
+    b.hp = 1;
+    const r = useItemOn(a, a.inventory.indexOf('draught'), b);
+    expect(r.ok).toBe(true);
+    expect(b.hp).toBe(b.maxHp);
+    expect(a.inventory).not.toContain('draught');
+  });
+
+  it('does not waste a potion on the dead or the unhurt', () => {
+    const a = makeHero('knight', 'A');
+    const b = makeHero('mage', 'B');
+    a.inventory.push('draught');
+    const at = a.inventory.indexOf('draught');
+    expect(useItemOn(a, at, b).ok).toBe(false); // b is at full HP
+    b.hp = 0;
+    expect(useItemOn(a, at, b).message).toMatch(/temple/);
+    expect(a.inventory).toContain('draught');
   });
 });

@@ -86,7 +86,10 @@ export class Shell {
       k.textContent = item.key.toUpperCase();
       b.append(k, item.label);
       b.addEventListener('click', () => {
-        if (!item.disabled) item.action();
+        if (item.disabled) return;
+        // Close the inspect panel first, so it doesn't stay over the screen the click changes.
+        if (!this.inspectEl.hidden) this.onInspectClose?.();
+        item.action();
       });
       this.menuEl.appendChild(b);
     }

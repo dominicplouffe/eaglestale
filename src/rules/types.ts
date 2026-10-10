@@ -108,6 +108,8 @@ export interface MonsterDef {
   id: string;
   name: string;
   plural: string;
+  /** A named individual such as a boss: battle text says "Malachar hits", not "The Malachar hits". */
+  unique?: boolean;
   hp: Dice;
   def: number;
   toHit: number;

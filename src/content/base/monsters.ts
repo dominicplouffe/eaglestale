@@ -24,6 +24,7 @@ export const monsters: MonsterDef[] = [
     id: 'malachar',
     name: 'Malachar the Plucker',
     plural: 'Malachars',
+    unique: true,
     hp: [8, 8, 24],
     def: 9,
     toHit: 7,

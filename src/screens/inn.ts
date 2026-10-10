@@ -23,9 +23,9 @@ export const innScreen: Screen = {
             action: () => {
               game.state.gold -= cost;
               for (const c of living) restoreFully(c);
-              game.save();
               game.audio.sfx('heal');
-              game.say('You sleep soundly. Everyone is healed and the game is saved.', 'good');
+              game.say('You sleep soundly. Everyone is healed.', 'good');
+              if (game.save()) game.say('Game saved.', 'good');
               game.refreshParty();
               menu();
             },

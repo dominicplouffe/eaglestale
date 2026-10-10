@@ -62,6 +62,10 @@ export type Outcome = 'ongoing' | 'victory' | 'defeat' | 'fled';
 const DEFEND_BONUS = 4;
 const SLEEP_SUCCESS = 0.65;
 
+/** "the Goblin", or the bare name for a unique monster ("Malachar the Plucker"). */
+const withArticle = (def: MonsterDef, name = def.name): string => (def.unique ? name : `the ${name}`);
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
 export class Battle {
   readonly groups: MonsterGroup[];
   outcome: Outcome = 'ongoing';
@@ -89,6 +93,11 @@ export class Battle {
   }
 
   // ---- Queries -------------------------------------------------------------
+
+  /** Defense bonus the whole party currently has from spells. */
+  get partyDefenseBonus(): number {
+    return this.partyBuff.amount;
+  }
 
   liveMembers(group: MonsterGroup): MonsterInstance[] {
     return group.members.filter((m) => m.hp > 0);
@@ -159,7 +168,8 @@ export class Battle {
       const closes = live.some((m) => m.asleep === 0) && !g.def.attacks.some((a) => a.ranged);
       if (g.distance > 0 && live.length > 0 && closes) {
         g.distance -= 1;
-        if (g.distance === 0) events.push({ text: `The ${this.groupName(i)} close in!` });
+        const verb = live.length > 1 ? 'close' : 'closes';
+        if (g.distance === 0) events.push({ text: `${capitalize(withArticle(g.def, this.groupName(i)))} ${verb} in!` });
       }
     });
   }
@@ -206,7 +216,7 @@ export class Battle {
     const sleeping = target.asleep > 0;
     const hit = sleeping || roll === 20 || (roll !== 1 && roll + toHit(c) >= 10 + group.def.def);
     if (!hit) {
-      events.push({ text: `${c.name} swings at the ${group.def.name} and misses.`, sfx: 'miss' });
+      events.push({ text: `${c.name} swings at ${withArticle(group.def)} and misses.`, sfx: 'miss' });
       return;
     }
     const strength = weapon?.ranged ? 0 : mod(c.stats.str);
@@ -214,7 +224,7 @@ export class Battle {
     let damage = Math.max(1, this.rng.roll(weaponDice(c)) + strength);
     if (crit) damage *= 2;
     events.push({
-      text: `${c.name} ${crit ? 'critically ' : ''}hits the ${group.def.name} for ${damage}.`,
+      text: `${c.name} ${crit ? 'critically ' : ''}hits ${withArticle(group.def)} for ${damage}.`,
       sfx: crit ? 'crit' : 'hit',
     });
     this.damageMonster(group, target, damage, events);
@@ -231,7 +241,7 @@ export class Battle {
     if (target.hp > 0) return;
     this.xpEarned += group.def.xp;
     this.goldEarned += Math.max(0, this.rng.roll(group.def.gold));
-    events.push({ text: `The ${group.def.name} is defeated!`, sfx: 'monsterDeath' });
+    events.push({ text: `${capitalize(withArticle(group.def))} is defeated!`, sfx: 'monsterDeath' });
   }
 
   private cast(c: Character, order: Extract<Order, { kind: 'cast' }>, events: BattleEvent[]): void {
@@ -250,7 +260,13 @@ export class Battle {
       return;
     }
     if (e.kind === 'defense') {
-      this.partyBuff = { amount: e.amount, turns: e.turns };
+      // Defense spells don't stack, and a weaker one must not replace a stronger one.
+      if (e.amount < this.partyBuff.amount) {
+        events.push({ text: `${c.name} casts ${spell.name}, but a stronger ward already protects the party.`, sfx: 'spell' });
+        return;
+      }
+      const sameStrength = e.amount === this.partyBuff.amount;
+      this.partyBuff = { amount: e.amount, turns: sameStrength ? Math.max(e.turns, this.partyBuff.turns) : e.turns };
       events.push({ text: `${c.name} casts ${spell.name}. The party feels sturdier!`, sfx: 'spell' });
       return;
     }
@@ -269,12 +285,13 @@ export class Battle {
           slept += 1;
         }
       }
-      events.push({ text: slept > 0 ? `${slept} enemies doze off.` : 'Nobody is sleepy.' });
+      const dozed = slept === 1 ? '1 enemy dozes off.' : `${slept} enemies doze off.`;
+      events.push({ text: slept > 0 ? dozed : 'Nobody is sleepy.' });
       return;
     }
     for (const { group, member } of targets) {
       const damage = Math.max(1, rollSpellDice(c, spell, this.rng));
-      events.push({ text: `The ${group.def.name} takes ${damage}.`, sfx: 'hit' });
+      events.push({ text: `${capitalize(withArticle(group.def))} takes ${damage}.`, sfx: 'hit' });
       this.damageMonster(group, member, damage, events);
     }
   }
@@ -357,13 +374,13 @@ export class Battle {
       const roll = this.rng.int(1, 20);
       const hit = roll === 20 || (roll !== 1 && roll + def.toHit >= 10 + armor);
       if (!hit) {
-        events.push({ text: `The ${def.name} ${attack.verb} ${t.name} but misses.`, sfx: 'miss' });
+        events.push({ text: `${capitalize(withArticle(def))} ${attack.verb} ${t.name} but misses.`, sfx: 'miss' });
         continue;
       }
       const damage = Math.max(1, this.rng.roll(attack.dice));
       t.hp = Math.max(0, t.hp - damage);
       events.push({
-        text: `The ${def.name} ${attack.verb} ${t.name} for ${damage}.`,
+        text: `${capitalize(withArticle(def))} ${attack.verb} ${t.name} for ${damage}.`,
         sfx: 'monsterHit',
       });
       if (t.hp === 0) events.push({ text: `${t.name} collapses.`, sfx: 'death' });

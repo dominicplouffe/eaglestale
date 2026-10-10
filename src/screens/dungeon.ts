@@ -1,13 +1,13 @@
 import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
-import type { MenuItem } from '../engine/shell';
+import { el, type MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W, renderDungeon } from '../gfx/dungeonView';
-import { drawMinimap } from '../gfx/minimap';
-import { MAX_INVENTORY, isAlive, restoreFully } from '../rules/character';
+import { MAP_COLORS, drawMinimap } from '../gfx/minimap';
+import { FRONT_ROW_SIZE, MAX_INVENTORY, isAlive, restoreFully } from '../rules/character';
 import type { EncounterSpec } from '../rules/combat';
 import { DIRS, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
 import { gameRng } from '../rules/rng';
-import type { DungeonPosition } from '../rules/state';
+import { movePartyMember, type DungeonPosition } from '../rules/state';
 import type { DungeonLevel, Special } from '../rules/types';
 import { openCharSheet } from '../ui/charSheet';
 import { startBattle } from './combat';
@@ -17,6 +17,8 @@ import { victoryScreen } from './victory';
 
 /** Fights that happen right after a step can't start until the party has walked a little. */
 const MIN_STEPS_BETWEEN_FIGHTS = 4;
+/** Pixel size of the full map's canvas (it is scaled down by CSS to fit). */
+const BIG_MAP_PX = 480;
 
 export const dungeonScreen: Screen = {
   enter(game: Game) {
@@ -284,16 +286,92 @@ class DungeonView {
         label: 'Party sheet',
         action: () => openCharSheet(game, { onClose: () => { game.refreshParty(); back(); } }),
       },
-      { key: 's', label: 'Save game', action: () => { game.save(); game.say('Game saved.', 'good'); } },
+      { key: 'f', label: 'Formation', action: () => this.formation() },
+      { key: 'v', label: 'View map', action: () => this.bigMap() },
+      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
     game.shell.setMenu(items, 'Camp');
     game.shell.setKeyHandler((e) => {
       if (e.key === 'Escape') {
-        back();
+        // Esc closes the formation or map panel first, then leaves camp.
+        if (game.shell.overlayOpen) game.shell.setOverlay(null);
+        else back();
         return true;
       }
       return e.key.startsWith('Arrow');
     });
+  }
+
+  /** Lets the party swap places mid-dungeon, e.g. when the front row has fallen. */
+  private formation(): void {
+    const { game } = this;
+    const render = (): void => {
+      const root = el(
+        'div',
+        { class: 'panel' },
+        el('h2', { text: 'Formation' }),
+        el('div', { class: 'dim', text: 'The first three stand in the front row: only they can fight in melee, and they take most melee blows.' }),
+      );
+      const party = game.party;
+      party.forEach((c, i) => {
+        const move = (delta: -1 | 1): void => {
+          movePartyMember(game.state, c.id, delta);
+          render();
+        };
+        root.append(
+          el(
+            'div',
+            { class: 'row' },
+            el('span', { class: 'grow', text: `${i + 1}. ${c.name} - ${content.cls(c.classId).name}${isAlive(c) ? '' : ' (dead)'}` }),
+            el('span', { class: 'dim', text: i < FRONT_ROW_SIZE ? 'front row' : 'back row' }),
+            el('button', { class: 'btn small', text: 'Up', disabled: i === 0, onclick: () => move(-1) }),
+            el('button', { class: 'btn small', text: 'Down', disabled: i === party.length - 1, onclick: () => move(1) }),
+          ),
+        );
+      });
+      root.append(el('div', { class: 'tabs' }, el('button', { class: 'btn', text: 'Done (Esc)', onclick: () => game.shell.setOverlay(null) })));
+      game.shell.setOverlay(root);
+      game.refreshParty();
+    };
+    render();
+  }
+
+  /** The auto-map at full size, with a legend. */
+  private bigMap(): void {
+    const { game } = this;
+    const canvas = el('canvas', { class: 'bigmap' });
+    canvas.width = BIG_MAP_PX;
+    canvas.height = BIG_MAP_PX;
+    const explored = new Set(game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
+    drawMinimap(canvas, this.level, explored, this.pos);
+    const key = (color: string, label: string): HTMLElement => {
+      const swatch = el('i', { class: 'swatch' });
+      swatch.style.background = color;
+      return el('span', {}, swatch, label);
+    };
+    const legend = el(
+      'div',
+      { class: 'legend' },
+      key(MAP_COLORS.you, 'You'),
+      key(MAP_COLORS.door, 'Door'),
+      key(MAP_COLORS.stairsUp, 'Stairs up'),
+      key(MAP_COLORS.stairsDown, 'Stairs down'),
+      key(MAP_COLORS.special, 'Something of note'),
+    );
+    game.shell.setOverlay(
+      el(
+        'div',
+        { class: 'panel' },
+        el(
+          'div',
+          { class: 'row' },
+          el('h2', { class: 'grow', text: `${this.level.name} - facing ${DIRS[this.pos.dir].name}` }),
+          el('button', { class: 'btn small', text: 'Close (Esc)', onclick: () => game.shell.setOverlay(null) }),
+        ),
+        legend,
+        canvas,
+      ),
+    );
   }
 }
