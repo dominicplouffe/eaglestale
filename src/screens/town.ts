@@ -5,6 +5,8 @@ import { content } from '../content/registry';
 import { offerFeathers } from '../rules/quests';
 import { openCharSheet } from '../ui/charSheet';
 import { openJournal } from '../ui/journal';
+import type { SlotId } from '../engine/saves';
+import { chooseSaveSlot } from './saveMenu';
 import { dungeonScreen } from './dungeon';
 import { guildScreen } from './guild';
 import { hasLivingParty } from './flow';
@@ -16,7 +18,9 @@ import { titleScreen } from './title';
 export const DUNGEON_ID = 'roost';
 
 export function startNewGame(game: Game): void {
-  if (game.hasSave && !window.confirm('Starting a new game will replace your saved game the next time you save. Continue?')) {
+  // The save slots are safe, but the autosave will be replaced once the new game reaches the stairs.
+  const latest = game.saves.latest();
+  if (latest === 'auto' && !window.confirm('Your latest progress is only in the autosave, which the new game will replace. Start a new game anyway?')) {
     return;
   }
   game.newGame();
@@ -26,8 +30,8 @@ export function startNewGame(game: Game): void {
   game.say(story.townHint, 'gold');
 }
 
-export function enterSavedGame(game: Game): void {
-  const result = game.load();
+export function enterSavedGame(game: Game, slot: SlotId): void {
+  const result = game.load(slot);
   if (!result.ok) {
     game.say(result.reason, 'bad');
     return;
@@ -61,7 +65,7 @@ function showMenu(game: Game): void {
       { key: 'p', label: 'Party sheet', disabled: game.party.length === 0, action: () => sheet(game) },
       { key: 'j', label: 'Journal', action: () => openJournal(game, () => showMenu(game)) },
       { key: 'd', label: 'Descend into the Roost Below', action: () => descend(game) },
-      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
+      { key: 's', label: 'Save game', action: () => chooseSaveSlot(game, () => showMenu(game)) },
       { key: 'q', label: 'Quit to title', action: () => game.go(titleScreen) },
     ],
     `Gold: ${state.gold}`,
@@ -83,7 +87,7 @@ function eagleTower(game: Game): void {
   game.audio.sfx('levelup');
   game.say('You climb the Eagle Tower and lay the feathers on the empty perch. They glow, faintly at first.', 'story');
   for (const line of lines) game.say(line, 'gold');
-  if (game.save()) game.say('Game saved.', 'dim');
+  game.autosave();
   showMenu(game);
 }
 
@@ -113,5 +117,6 @@ function descend(game: Game): void {
   const start = dungeon.levels[0].start;
   game.state.location = { dungeon: dungeon.id, level: 0, ...start };
   game.audio.sfx('stairs');
+  game.autosave();
   game.go(dungeonScreen);
 }

@@ -18,14 +18,14 @@ export const innScreen: Screen = {
         [
           {
             key: 'r',
-            label: `Rest and save (${cost}g)`,
+            label: `Rest (${cost}g)`,
             disabled: living.length === 0 || game.state.gold < cost,
             action: () => {
               game.state.gold -= cost;
               for (const c of living) restoreFully(c);
               game.audio.sfx('heal');
               game.say('You sleep soundly. Everyone is healed.', 'good');
-              if (game.save()) game.say('Game saved.', 'good');
+              game.autosave();
               game.refreshParty();
               menu();
             },

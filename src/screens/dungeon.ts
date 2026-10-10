@@ -15,6 +15,7 @@ import { openCharSheet } from '../ui/charSheet';
 import { openJournal } from '../ui/journal';
 import { startBattle } from './combat';
 import { partyWiped } from './flow';
+import { chooseSaveSlot } from './saveMenu';
 import { townScreen } from './town';
 import { victoryScreen } from './victory';
 
@@ -261,7 +262,10 @@ class DungeonView {
     const question = toTown ? 'Climb back up to Talonreach?' : goingUp ? 'Climb the stairs up?' : 'Descend the stairs?';
     this.confirm(question, () => {
       this.game.audio.sfx('stairs');
-      if (toTown) return this.game.go(townScreen);
+      if (toTown) {
+        this.game.go(townScreen);
+        return this.game.autosave();
+      }
       const dungeon = content.dungeon(this.pos.dungeon);
       const level = this.pos.level + (goingUp ? -1 : 1);
       const target = dungeon.levels[level];
@@ -277,6 +281,7 @@ class DungeonView {
       this.game.say(`You arrive on ${target.name}.`, 'dim');
       this.explore();
       this.refreshHud();
+      this.game.autosave();
     });
   }
 
@@ -411,7 +416,7 @@ class DungeonView {
       { key: 'f', label: 'Formation', action: () => this.formation() },
       { key: 'v', label: 'View map', action: () => this.bigMap() },
       { key: 'j', label: 'Journal', action: () => openJournal(game, () => this.camp()) },
-      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
+      { key: 's', label: 'Save game', action: () => chooseSaveSlot(game, () => this.camp()) },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
     game.shell.setMenu(items, 'Camp');

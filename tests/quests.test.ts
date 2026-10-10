@@ -5,6 +5,7 @@ import {
   availableBounties,
   cityStage,
   gainFeather,
+  lockedBecause,
   offerFeathers,
   questEvent,
   shopStock,
@@ -128,5 +129,14 @@ describe('quests', () => {
     for (let i = 0; i < 20 && b.outcome === 'ongoing'; i++) b.resolveRound(new Map([['knight', { kind: 'attack', group: 0 }]]));
     expect(b.outcome).toBe('victory');
     expect(b.kills).toEqual({ rat: 2 });
+  });
+
+  it('locks say what is missing until the party has it', () => {
+    const s = game();
+    const lock = { key: 'test-tail', feathers: 1 };
+    expect(lockedBecause(s, lock)).toBe("You need the Test Tail and 1 of Aquila's feathers (you have 0).");
+    s.roster[0].inventory.push('test-tail');
+    gainFeather(s, 'test-f1');
+    expect(lockedBecause(s, lock)).toBeNull();
   });
 });

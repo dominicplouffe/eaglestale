@@ -13,7 +13,7 @@ export const victoryScreen: Screen = {
     for (const line of story.victory) game.say(line, 'story');
     audio.music('victory');
     audio.sfx('victory');
-    game.save();
+    game.autosave();
     shell.setDraw((ctx, t) => {
       drawTitleScene(ctx, t, true);
       drawText(ctx, 'THE EAGLE RETURNS', 160, 142, { color: '#e8c34a', outline: '#0e0a1c', scale: 2, align: 'center' });
