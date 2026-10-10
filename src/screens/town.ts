@@ -25,12 +25,14 @@ export function startNewGame(game: Game): void {
 }
 
 export function enterSavedGame(game: Game): void {
-  if (!game.load()) {
-    game.say('The save file is missing or from an incompatible version.', 'bad');
+  const result = game.load();
+  if (!result.ok) {
+    game.say(result.reason, 'bad');
     return;
   }
   game.go(game.state.location ? dungeonScreen : townScreen);
   game.say('Game loaded.', 'good');
+  for (const note of result.notes) game.say(note, 'dim');
 }
 
 export const townScreen: Screen = {

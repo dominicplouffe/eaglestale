@@ -1,5 +1,5 @@
 import type { Character } from '../rules/types';
-import { deserialize, newGameState, partyMembers, serialize, type GameState } from '../rules/state';
+import { deserialize, newGameState, partyMembers, serialize, type GameState, type LoadResult } from '../rules/state';
 import type { Audio } from './audio';
 import type { LogStyle, Shell } from './shell';
 import { readStored, writeStored } from './storage';
@@ -75,12 +75,13 @@ export class Game {
     return ok;
   }
 
-  load(): boolean {
+  /** Loads the saved game into `state` if it can be read; the result says why not, or what was repaired. */
+  load(): LoadResult {
     const raw = readStored(SAVE_KEY);
-    const loaded = raw ? deserialize(raw) : null;
-    if (!loaded) return false;
-    this.state = loaded;
-    return true;
+    if (raw === null) return { ok: false, reason: 'There is no saved game.' };
+    const result = deserialize(raw);
+    if (result.ok) this.state = result.state;
+    return result;
   }
 
   newGame(): void {

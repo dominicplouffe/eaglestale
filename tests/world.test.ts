@@ -90,9 +90,36 @@ describe('party and saves', () => {
     const s = newGameState();
     s.gold = 77;
     s.roster.push(makeHero('mage', 'Merlin'));
-    expect(deserialize(serialize(s))).toEqual(s);
-    expect(deserialize('not json')).toBeNull();
-    expect(deserialize(JSON.stringify({ version: 999, roster: [] }))).toBeNull();
+    expect(deserialize(serialize(s))).toEqual({ ok: true, state: s, notes: [] });
+    expect(deserialize('not json').ok).toBe(false);
+    expect(deserialize(JSON.stringify({ version: 1, roster: 'nope' })).ok).toBe(false);
+    expect(deserialize(JSON.stringify({ version: 999, roster: [] }))).toMatchObject({ ok: false, reason: /newer/ });
+    expect(deserialize(JSON.stringify({ ...s, version: 0 }))).toMatchObject({ ok: false, reason: /version 0/ });
+  });
+
+  it('repairs saves that refer to content that no longer exists', () => {
+    const s = newGameState();
+    const hero = makeHero('knight', 'Bonk');
+    hero.inventory.push('long-lost-relic');
+    hero.equipment.trinket = 'retired-charm';
+    s.roster.push(hero);
+    s.party.push(hero.id, 'ghost-of-a-deleted-hero');
+    s.location = { dungeon: 'roost', level: 0, x: 0, y: 0, dir: 0 }; // (0,0) is solid wall
+    const r = deserialize(serialize(s));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.state.roster[0].inventory).not.toContain('long-lost-relic');
+    expect(r.state.roster[0].equipment.trinket).toBeUndefined();
+    expect(r.state.party).toEqual([hero.id]);
+    expect(r.state.location).toBeNull();
+    expect(r.notes).toHaveLength(2);
+  });
+
+  it('refuses saves whose heroes have a class that no longer exists', () => {
+    const s = newGameState();
+    const hero = makeHero('knight', 'Bonk');
+    hero.classId = 'bard-of-yore';
+    s.roster.push(hero);
+    expect(deserialize(serialize(s))).toMatchObject({ ok: false, reason: /Bonk/ });
   });
 
   it('auto-allocated heroes are always legal for their class', () => {
