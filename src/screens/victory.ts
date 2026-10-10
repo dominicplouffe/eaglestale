@@ -15,7 +15,7 @@ export const victoryScreen: Screen = {
     audio.sfx('victory');
     game.save();
     shell.setDraw((ctx, t) => {
-      drawTitleScene(ctx, t);
+      drawTitleScene(ctx, t, true);
       drawText(ctx, 'THE EAGLE RETURNS', 160, 142, { color: '#e8c34a', outline: '#0e0a1c', scale: 2, align: 'center' });
     });
     shell.setMenu(

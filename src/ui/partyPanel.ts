@@ -1,6 +1,6 @@
 import { content } from '../content/registry';
 import { el } from '../engine/shell';
-import { drawPortrait } from '../gfx/portrait';
+import { BUST, drawPortrait } from '../gfx/portrait';
 import { FRONT_ROW_SIZE, isAlive } from '../rules/character';
 import type { Character } from '../rules/types';
 
@@ -19,8 +19,8 @@ export function renderPartyPanel(
   party.forEach((c, i) => {
     const alive = isAlive(c);
     const portrait = el('canvas');
-    portrait.width = 32;
-    portrait.height = 32;
+    portrait.width = BUST;
+    portrait.height = BUST;
     drawPortrait(portrait, c, !alive);
     const cls = content.cls(c.classId);
     const bar = (value: number, max: number, extra = ''): HTMLElement => {
