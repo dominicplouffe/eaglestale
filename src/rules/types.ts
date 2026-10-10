@@ -162,6 +162,11 @@ export interface DungeonTheme {
   floor: string;
   ceiling: string;
   door: string;
+  /**
+   * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
+   * blocks) or 'rune' (dressed stone with glowing runes). Defaults to 'brick'.
+   */
+  style?: 'brick' | 'stone' | 'rune';
 }
 
 export interface DungeonDef {
