@@ -1,5 +1,6 @@
 import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
+import { BATTLE_SPEEDS, battleSpeed } from '../engine/settings';
 import type { LogStyle, MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W } from '../gfx/dungeonView';
 import { drawBattleBackdrop } from '../gfx/scenes';
@@ -16,7 +17,6 @@ export interface BattleHooks {
   onDefeat: () => void;
 }
 
-const EVENT_DELAY_MS = 420;
 const SPRITE_PX = 16;
 const MAX_STACK = 3;
 
@@ -252,7 +252,9 @@ class CombatScreen implements Screen {
       if (e.sfx) game.audio.sfx(e.sfx);
       if (e.sfx === 'monsterHit' || e.sfx === 'crit') this.shakeUntil = performance.now() + 160;
       game.refreshParty();
-      if (!this.fast) await sleep(EVENT_DELAY_MS);
+      // Read each time, so changing the speed mid-battle takes effect at once.
+      const delay = BATTLE_SPEEDS[battleSpeed()];
+      if (!this.fast && delay > 0) await sleep(delay);
     }
   }
 

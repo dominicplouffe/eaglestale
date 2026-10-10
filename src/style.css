@@ -18,7 +18,7 @@ button { font: inherit; color: inherit; }
 #titlebar { display: flex; align-items: center; gap: 16px; padding: 4px 8px; border-bottom: 2px solid var(--line); }
 .brand { color: var(--gold); letter-spacing: 3px; font-weight: bold; }
 #location { flex: 1; color: var(--dim); }
-#mute { background: var(--panel); border: 1px solid var(--line); padding: 3px 10px; cursor: pointer; }
+#titlebar button { background: var(--panel); border: 1px solid var(--line); padding: 3px 10px; cursor: pointer; }
 #stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 8px; min-height: 0; }
 #viewport { position: relative; background: #000; border: 3px solid var(--line); min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 #view { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
