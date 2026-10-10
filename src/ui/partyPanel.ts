@@ -43,13 +43,13 @@ export function renderPartyPanel(
     if (!alive) classes.push('dead');
     if (i >= FRONT_ROW_SIZE) classes.push('row-back');
     if (c.id === activeId) classes.push('active');
-    root.append(
-      el(
-        'div',
-        { class: classes.join(' '), title: 'Click to see attributes and pack', onclick: () => onSelect(c.id) },
-        portrait,
-        info,
-      ),
+    const card = el(
+      'div',
+      { class: classes.join(' '), title: 'Click to see attributes and pack', onclick: () => onSelect(c.id) },
+      portrait,
+      info,
     );
+    card.dataset.id = c.id;
+    root.append(card);
   });
 }

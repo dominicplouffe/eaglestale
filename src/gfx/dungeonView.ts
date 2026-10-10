@@ -26,8 +26,9 @@ const FEATURE_EVERY = 7;
 /** 4x4 ordered-dither thresholds: brightness between two light levels becomes a fine checker pattern. */
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
-/** Torchlight: full brightness close by, fading to black about seven squares away. */
-const lightAt = (dist: number, flicker: number): number => Math.max(0, Math.min(1, (1.12 - dist * 0.155) * flicker));
+/** Torchlight: full brightness close by, fading to black about seven squares away (or to `ambient`). */
+let ambient = 0;
+const lightAt = (dist: number, flicker: number): number => Math.max(ambient, Math.min(1, (1.12 - dist * 0.155) * flicker));
 
 const levelFor = (light: number, x: number, y: number): number =>
   Math.min(LIGHT_LEVELS, Math.floor(light * LIGHT_LEVELS + BAYER[((y & 3) << 2) | (x & 3)]));
@@ -128,9 +129,13 @@ function column(
   }
 }
 
-/** Draws the first-person corridor view. `t` is time in seconds, for torch flicker and flames. */
-export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState, t: number): void {
+/**
+ * Draws the first-person corridor view. `t` is time in seconds, for torch flicker and flames.
+ * `minLight` keeps far surfaces from going fully dark (used for the lit battle arena).
+ */
+export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState, t: number, minLight = 0): void {
   const { level } = v;
+  ambient = minLight;
   const tex = texturesFor(level.theme);
   if (!image || !pixels) {
     image = ctx.createImageData(VIEW_W, VIEW_H);

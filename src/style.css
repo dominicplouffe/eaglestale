@@ -48,6 +48,8 @@ button { font: inherit; color: inherit; }
 .party-card { cursor: pointer; }
 .party-card:hover { border-color: var(--accent); }
 .party-card.active { border-color: var(--gold); }
+.party-card.hurt { background: #5a1a24; border-color: var(--bad); }
+.party-card.healed { background: #1f4a2a; border-color: var(--good); }
 .party-card.dead { opacity: 0.55; }
 .party-card.row-back { margin-left: 18px; }
 .party-card canvas { width: 36px; height: 36px; image-rendering: pixelated; }
