@@ -3,6 +3,7 @@ import type { Game, Screen } from '../engine/game';
 import { el } from '../engine/shell';
 import { drawPlace } from '../gfx/scenes';
 import { MAX_INVENTORY, canUse, equipDelta } from '../rules/character';
+import { shopStock } from '../rules/quests';
 import { buyAndEquip, buyItem, sellItem, sellPrice, type TradeResult } from '../rules/shop';
 import { SLOTS, type Character, type ItemDef } from '../rules/types';
 import { itemStats } from '../ui/inspect';
@@ -86,7 +87,7 @@ export const shopScreen: Screen = {
       );
 
       if (mode === 'buy') {
-        for (const id of shop.stock) {
+        for (const id of shopStock(game.state, shop.stock)) {
           const item = content.item(id);
           const usable = canUse(buyer, item);
           const cantBuy = game.state.gold < item.price || buyer.inventory.length >= MAX_INVENTORY;

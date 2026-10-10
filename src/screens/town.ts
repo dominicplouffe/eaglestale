@@ -2,7 +2,9 @@ import { story } from '../content/base/story';
 import type { Game, Screen } from '../engine/game';
 import { drawPlace } from '../gfx/scenes';
 import { content } from '../content/registry';
+import { offerFeathers } from '../rules/quests';
 import { openCharSheet } from '../ui/charSheet';
+import { openJournal } from '../ui/journal';
 import { dungeonScreen } from './dungeon';
 import { guildScreen } from './guild';
 import { hasLivingParty } from './flow';
@@ -48,19 +50,41 @@ export const townScreen: Screen = {
 
 function showMenu(game: Game): void {
   const { state } = game;
+  const toReturn = state.feathers.length - state.offered;
   game.shell.setMenu(
     [
+      { key: 'w', label: `Eagle Tower${toReturn > 0 ? ` (${toReturn} to return)` : ''}`, action: () => eagleTower(game) },
       { key: 'g', label: 'Guild of Questionable Heroes', action: () => game.go(guildScreen) },
       { key: 'e', label: "Dusty Gizzard's Emporium", action: () => game.go(shopScreen) },
       { key: 't', label: 'Temple of the Gentle Peck', action: () => game.go(templeScreen) },
       { key: 'i', label: 'The Drowsy Hen Inn', action: () => game.go(innScreen) },
       { key: 'p', label: 'Party sheet', disabled: game.party.length === 0, action: () => sheet(game) },
+      { key: 'j', label: 'Journal', action: () => openJournal(game, () => showMenu(game)) },
       { key: 'd', label: 'Descend into the Roost Below', action: () => descend(game) },
       { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
       { key: 'q', label: 'Quit to title', action: () => game.go(titleScreen) },
     ],
     `Gold: ${state.gold}`,
   );
+}
+
+/** Returning Aquila's feathers to the tower is how the city recovers. */
+function eagleTower(game: Game): void {
+  const lines = offerFeathers(game.state);
+  if (lines.length === 0) {
+    game.say(
+      game.state.offered === 0
+        ? "The Eagle Tower's perch stands empty. Bring back Aquila's feathers and the city will remember how to hope."
+        : 'The keepers of the tower nod at you. Every feather counts; bring the rest home.',
+      'story',
+    );
+    return;
+  }
+  game.audio.sfx('levelup');
+  game.say('You climb the Eagle Tower and lay the feathers on the empty perch. They glow, faintly at first.', 'story');
+  for (const line of lines) game.say(line, 'gold');
+  if (game.save()) game.say('Game saved.', 'dim');
+  showMenu(game);
 }
 
 function sheet(game: Game): void {

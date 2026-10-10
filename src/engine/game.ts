@@ -1,5 +1,5 @@
 import type { Character } from '../rules/types';
-import { deserialize, newGameState, partyMembers, serialize, type GameState, type LoadResult } from '../rules/state';
+import { deserialize, newGameState, partyMembers, serialize, startingState, type GameState, type LoadResult } from '../rules/state';
 import type { Audio } from './audio';
 import type { LogStyle, Shell } from './shell';
 import { readStored, writeStored } from './storage';
@@ -85,6 +85,6 @@ export class Game {
   }
 
   newGame(): void {
-    this.state = newGameState();
+    this.state = startingState();
   }
 }

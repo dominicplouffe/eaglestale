@@ -155,6 +155,17 @@ export function turnIn(s: GameState, id: string): string[] {
   return finish(s, id);
 }
 
+// ---- Locks ----------------------------------------------------------------------------
+
+/** Why a locked door won't open yet, or null if the party has what it needs. */
+export function lockedBecause(s: GameState, lock: { key?: string; feathers?: number }): string | null {
+  const missing: string[] = [];
+  if (lock.key && itemCount(s, lock.key) === 0) missing.push(content.item(lock.key).name);
+  const need = lock.feathers ?? 0;
+  if (s.feathers.length < need) missing.push(`${need} of Aquila's feathers (you have ${s.feathers.length})`);
+  return missing.length ? `You need ${missing.join(' and ')}.` : null;
+}
+
 // ---- Rewards, feathers and the city ------------------------------------------------
 
 /** Gives an item to the first living hero with room, or says it was left behind. */

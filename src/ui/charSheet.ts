@@ -162,17 +162,19 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
           }),
         );
       }
-      row.append(
-        el('button', {
-          class: 'btn small',
-          text: 'Drop',
-          onclick: () => {
-            if (!window.confirm(`Drop ${item.name}? It will be gone for good.`)) return;
-            c.inventory.splice(index, 1);
-            redraw();
-          },
-        }),
-      );
+      if (!item.quest) {
+        row.append(
+          el('button', {
+            class: 'btn small',
+            text: 'Drop',
+            onclick: () => {
+              if (!window.confirm(`Drop ${item.name}? It will be gone for good.`)) return;
+              c.inventory.splice(index, 1);
+              redraw();
+            },
+          }),
+        );
+      }
       root.append(row);
 
       if (picking?.kind === 'use' && picking.ownerId === c.id && picking.index === index && item.use) {
