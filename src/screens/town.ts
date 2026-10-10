@@ -54,7 +54,7 @@ function showMenu(game: Game): void {
       { key: 'i', label: 'The Drowsy Hen Inn', action: () => game.go(innScreen) },
       { key: 'p', label: 'Party sheet', disabled: game.party.length === 0, action: () => sheet(game) },
       { key: 'd', label: 'Descend into the Roost Below', action: () => descend(game) },
-      { key: 's', label: 'Save game', action: () => { game.save(); game.say('Game saved.', 'good'); } },
+      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
       { key: 'q', label: 'Quit to title', action: () => game.go(titleScreen) },
     ],
     `Gold: ${state.gold}`,

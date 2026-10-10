@@ -284,7 +284,7 @@ class DungeonView {
         label: 'Party sheet',
         action: () => openCharSheet(game, { onClose: () => { game.refreshParty(); back(); } }),
       },
-      { key: 's', label: 'Save game', action: () => { game.save(); game.say('Game saved.', 'good'); } },
+      { key: 's', label: 'Save game', action: () => { if (game.save()) game.say('Game saved.', 'good'); } },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
     game.shell.setMenu(items, 'Camp');

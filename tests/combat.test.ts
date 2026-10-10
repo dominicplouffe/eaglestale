@@ -111,6 +111,20 @@ describe('battle', () => {
     expect(log).toMatch(/the Goblin/i);
   });
 
+  it('a weaker defense spell does not replace a stronger one', () => {
+    const healer = makeHero('healer');
+    healer.level = 3; // knows Sanctuary (+3)
+    healer.sp = 20;
+    const minstrel = makeHero('minstrel'); // knows Rousing Tune (+1)
+    minstrel.sp = 20;
+    const b = new Battle([healer, minstrel], [{ monster: 'rat', count: 1, distance: 2 }], new Rng(1));
+    b.resolveRound(new Map([[healer.id, { kind: 'cast', spell: 'sanctuary' }]]));
+    expect(b.partyDefenseBonus).toBe(3);
+    const events = b.resolveRound(new Map([[minstrel.id, { kind: 'cast', spell: 'rousing' }]]));
+    expect(b.partyDefenseBonus).toBe(3);
+    expect(events.map((e) => e.text).join('\n')).toMatch(/stronger ward/);
+  });
+
   it('defeat when everyone is dead', () => {
     const party = [makeHero('mage')];
     party[0].hp = 1;

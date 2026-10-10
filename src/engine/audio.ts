@@ -91,6 +91,8 @@ const TRACKS: Record<TrackName, Track> = {
   },
 };
 
+import { readStored, writeStored } from './storage';
+
 const midiToHz = (n: number): number => 440 * Math.pow(2, (n - 69) / 12);
 const STORAGE_KEY = 'eagles-tale:muted';
 
@@ -103,7 +105,7 @@ export class Audio {
   private nextBar = 0;
 
   constructor() {
-    this.muted = localStorage.getItem(STORAGE_KEY) === '1';
+    this.muted = readStored(STORAGE_KEY) === '1';
   }
 
   get isMuted(): boolean {
@@ -131,7 +133,7 @@ export class Audio {
 
   toggleMute(): boolean {
     this.muted = !this.muted;
-    localStorage.setItem(STORAGE_KEY, this.muted ? '1' : '0');
+    writeStored(STORAGE_KEY, this.muted ? '1' : '0');
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.8;
     else if (!this.muted) this.ensure();
     return this.muted;

@@ -94,6 +94,11 @@ export class Battle {
 
   // ---- Queries -------------------------------------------------------------
 
+  /** Defense bonus the whole party currently has from spells. */
+  get partyDefenseBonus(): number {
+    return this.partyBuff.amount;
+  }
+
   liveMembers(group: MonsterGroup): MonsterInstance[] {
     return group.members.filter((m) => m.hp > 0);
   }
@@ -255,7 +260,13 @@ export class Battle {
       return;
     }
     if (e.kind === 'defense') {
-      this.partyBuff = { amount: e.amount, turns: e.turns };
+      // Defense spells don't stack, and a weaker one must not replace a stronger one.
+      if (e.amount < this.partyBuff.amount) {
+        events.push({ text: `${c.name} casts ${spell.name}, but a stronger ward already protects the party.`, sfx: 'spell' });
+        return;
+      }
+      const sameStrength = e.amount === this.partyBuff.amount;
+      this.partyBuff = { amount: e.amount, turns: sameStrength ? Math.max(e.turns, this.partyBuff.turns) : e.turns };
       events.push({ text: `${c.name} casts ${spell.name}. The party feels sturdier!`, sfx: 'spell' });
       return;
     }
@@ -274,7 +285,8 @@ export class Battle {
           slept += 1;
         }
       }
-      events.push({ text: slept > 0 ? `${slept} enemies doze off.` : 'Nobody is sleepy.' });
+      const dozed = slept === 1 ? '1 enemy dozes off.' : `${slept} enemies doze off.`;
+      events.push({ text: slept > 0 ? dozed : 'Nobody is sleepy.' });
       return;
     }
     for (const { group, member } of targets) {
