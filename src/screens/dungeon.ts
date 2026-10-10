@@ -20,6 +20,16 @@ import { victoryScreen } from './victory';
 const MIN_STEPS_BETWEEN_FIGHTS = 4;
 /** Pixel size of the full map's canvas (it is scaled down by CSS to fit). */
 const BIG_MAP_PX = 480;
+/** How long the camera takes to glide one square, to turn, and to nudge a wall. */
+const STEP_MS = 150;
+const TURN_MS = 130;
+const BUMP_MS = 170;
+
+interface Camera {
+  x: number;
+  y: number;
+  angle: number;
+}
 
 export const dungeonScreen: Screen = {
   enter(game: Game) {
@@ -30,6 +40,10 @@ export const dungeonScreen: Screen = {
 
 class DungeonView {
   private modal = false;
+  /** The camera glides to the party's new square or facing; the rules have already moved on. */
+  private anim: { from: Camera; to: Camera; start: number; ms: number; bump: boolean } | null = null;
+  /** Moves pressed while the camera is still gliding run as soon as it arrives (up to two wait). */
+  private queued: (() => void)[] = [];
 
   constructor(private readonly game: Game) {}
 
@@ -45,8 +59,11 @@ class DungeonView {
     const { shell, audio } = this.game;
     audio.music('dungeon');
     this.explore();
+    this.anim = null;
+    this.queued = [];
     shell.setDraw((ctx, t) => {
-      renderDungeon(ctx, { level: this.level, x: this.pos.x, y: this.pos.y, dir: this.pos.dir }, t);
+      const cam = this.camera(performance.now());
+      renderDungeon(ctx, { level: this.level, x: cam.x, y: cam.y, dir: this.pos.dir, angle: cam.angle }, t);
       drawText(ctx, DIRS[this.pos.dir].name, 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c' });
       drawText(ctx, this.level.name, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
     });
@@ -59,11 +76,45 @@ class DungeonView {
       };
       const action = moves[e.key.toLowerCase()];
       if (!action) return false;
-      if (!this.modal) action();
+      if (this.modal) return true;
+      if (!this.anim) action();
+      else if (this.queued.length < 2) this.queued.push(action);
       return true;
     });
     this.mainMenu();
     this.refreshHud();
+  }
+
+  /** Where to draw the camera now: easing toward the party's square and facing. */
+  private camera(now: number): Camera {
+    const target: Camera = { x: this.pos.x, y: this.pos.y, angle: this.pos.dir * (Math.PI / 2) };
+    const a = this.anim;
+    if (!a) return target;
+    const p = Math.min(1, (now - a.start) / a.ms);
+    if (p >= 1) {
+      this.anim = null;
+      const next = this.queued.shift();
+      if (next && !this.modal) next();
+      return target;
+    }
+    if (a.bump) {
+      const push = Math.sin(p * Math.PI) * 0.12;
+      return { x: a.to.x + Math.sin(a.to.angle) * push, y: a.to.y - Math.cos(a.to.angle) * push, angle: a.to.angle };
+    }
+    const e = 1 - (1 - p) * (1 - p);
+    return { x: a.from.x + (a.to.x - a.from.x) * e, y: a.from.y + (a.to.y - a.from.y) * e, angle: a.from.angle + (a.to.angle - a.from.angle) * e };
+  }
+
+  /** Starts the camera gliding from `from` (where it was before the move) to the party's square and facing. */
+  private glide(from: Camera, ms: number, bump = false): void {
+    const now = performance.now();
+    const to: Camera = { x: this.pos.x, y: this.pos.y, angle: this.pos.dir * (Math.PI / 2) };
+    // Turn the short way round.
+    let da = to.angle - from.angle;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    to.angle = from.angle + da;
+    this.anim = { from, to, start: now, ms, bump };
   }
 
   private refreshHud(): void {
@@ -98,8 +149,10 @@ class DungeonView {
   }
 
   private turn(delta: number): void {
+    const from = this.camera(performance.now());
     this.pos.dir = turn(this.pos.dir, delta);
     this.game.audio.sfx('ui');
+    this.glide(from, delta === 2 ? TURN_MS * 1.5 : TURN_MS);
     this.refreshHud();
   }
 
@@ -109,12 +162,15 @@ class DungeonView {
     const nx = this.pos.x + d.dx;
     const ny = this.pos.y + d.dy;
     const tile = tileAt(this.level, nx, ny);
+    const from = this.camera(performance.now());
     if (!isWalkable(tile)) {
       game.audio.sfx('bump');
+      this.glide(from, BUMP_MS, true);
       return;
     }
     this.pos.x = nx;
     this.pos.y = ny;
+    this.glide(from, STEP_MS);
     game.audio.sfx(tile === '+' ? 'door' : 'step');
     this.explore();
     this.refreshHud();
@@ -156,6 +212,7 @@ class DungeonView {
         if (x >= 0) spot = { x, y, dir: this.openDirection(target, x, y) };
       });
       this.game.state.location = { dungeon: dungeon.id, level, ...spot };
+      this.anim = null; // a new level: no gliding from the old spot
       this.game.say(`You arrive on ${target.name}.`, 'dim');
       this.explore();
       this.refreshHud();

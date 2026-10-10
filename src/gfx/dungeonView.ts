@@ -94,9 +94,12 @@ export function castRay(level: DungeonLevel, posX: number, posY: number, rayX: n
 
 export interface DungeonViewState {
   level: DungeonLevel;
+  /** The square the party stands on; may be fractional while the camera glides between squares. */
   x: number;
   y: number;
   dir: number;
+  /** Facing in radians (0 = north, clockwise), for smooth turns; defaults to `dir`. */
+  angle?: number;
 }
 
 let image: ImageData | null = null;
@@ -142,7 +145,9 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
     pixels = new Uint32Array(image.data.buffer);
   }
   const buf = pixels;
-  const { dx: dirX, dy: dirY } = DIRS[v.dir];
+  const angle = v.angle ?? v.dir * (Math.PI / 2);
+  const dirX = v.angle === undefined ? DIRS[v.dir].dx : Math.sin(angle);
+  const dirY = v.angle === undefined ? DIRS[v.dir].dy : -Math.cos(angle);
   const planeX = -dirY * FOV_TAN;
   const planeY = dirX * FOV_TAN;
   const posX = v.x + 0.5 - dirX * CAMERA_BACK;
