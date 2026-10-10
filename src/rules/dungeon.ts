@@ -36,7 +36,8 @@ export function rollEncounter(level: DungeonLevel, rng: Rng): EncounterSpec[] {
     const existing = specs.find((s) => s.monster === entry.monster);
     const count = rng.int(entry.min, entry.max);
     if (existing) existing.count += count;
-    else specs.push({ monster: entry.monster, count, distance: i === 0 ? rng.int(0, 1) : rng.int(1, 2) });
+    // The first group is always within reach; others usually are, or are one step away.
+    else specs.push({ monster: entry.monster, count, distance: i === 0 || rng.chance(0.6) ? 0 : 1 });
   }
   return specs;
 }

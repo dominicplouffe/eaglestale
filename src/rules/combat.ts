@@ -176,7 +176,9 @@ export class Battle {
     if (this.partyBuff.turns > 0 && --this.partyBuff.turns === 0) this.partyBuff.amount = 0;
     this.groups.forEach((g, i) => {
       const live = this.liveMembers(g);
-      const closes = live.some((m) => m.asleep === 0) && !g.def.attacks.some((a) => a.ranged);
+      // Every group with someone awake steps closer each round. Ranged attackers lose nothing by it
+      // (they can still shoot from anywhere), and melee heroes aren't left with nothing to hit.
+      const closes = live.some((m) => m.asleep === 0);
       if (g.distance > 0 && live.length > 0 && closes) {
         g.distance -= 1;
         const verb = live.length > 1 ? 'close' : 'closes';
