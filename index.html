@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eagle's Tale</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2314121c'/%3E%3Cpath d='M2 4h4l2 3 2-3h4l-2 6-4 4-4-4z' fill='%23e8c34a'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="titlebar">
+        <span class="brand">EAGLE'S TALE</span>
+        <span id="location"></span>
+        <button id="mute" title="Toggle sound (M)">Sound: on</button>
+      </header>
+      <main id="stage">
+        <div id="viewport">
+          <canvas id="view" width="320" height="180"></canvas>
+          <div id="overlay" hidden></div>
+        </div>
+        <aside id="side">
+          <div id="party"></div>
+          <canvas id="minimap" width="150" height="150" hidden></canvas>
+        </aside>
+      </main>
+      <footer id="bottom">
+        <div id="log" aria-live="polite"></div>
+        <div id="menu"></div>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
