@@ -5,6 +5,12 @@ import { isAlive } from '../rules/character';
 import { townScreen } from './town';
 
 const reviveCost = (level: number): number => 100 * level;
+/**
+ * Healing is 1g per 5 HP (rounded up): the cheap way to patch up one or two heroes,
+ * while the inn (5g a hero, HP and SP) is better value for the whole party.
+ */
+const HP_PER_GOLD = 5;
+const healCost = (missing: number): number => Math.ceil(missing / HP_PER_GOLD);
 
 export const templeScreen: Screen = {
   enter(game: Game) {
@@ -60,7 +66,7 @@ export const templeScreen: Screen = {
             }),
           );
         } else if (c.hp < c.maxHp) {
-          const cost = c.maxHp - c.hp;
+          const cost = healCost(c.maxHp - c.hp);
           row.append(
             el('span', { class: 'price', text: `${cost}g` }),
             el('button', {
@@ -71,7 +77,7 @@ export const templeScreen: Screen = {
                 game.state.gold -= cost;
                 c.hp = c.maxHp;
                 game.audio.sfx('heal');
-                game.say(`${c.name} is patched up (1g per HP).`, 'good');
+                game.say(`${c.name} is patched up for ${cost}g (1g per ${HP_PER_GOLD} HP).`, 'good');
                 render();
               },
             }),
