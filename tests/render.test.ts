@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../src/content';
 import { ART_SIZE, artDef } from '../src/gfx/art';
+import { PORTRAIT_DATA } from '../src/gfx/art/portraits';
+import { BUST } from '../src/gfx/portrait';
 import { castRay } from '../src/gfx/dungeonView';
 import { textWidth } from '../src/gfx/font';
 import type { DungeonLevel } from '../src/rules/types';
@@ -84,6 +86,30 @@ describe('monster art', () => {
       for (const row of def.rows) {
         expect(row.length).toBe(def.symmetric ? ART_SIZE / 2 : ART_SIZE);
         for (const ch of row) if (ch !== '.') expect(def.colors[ch], `${m.sprite} key "${ch}"`).toBeDefined();
+      }
+    }
+  });
+});
+
+describe('portraits', () => {
+  const L = PORTRAIT_DATA.layers;
+
+  it('has a head for every race and an outfit and headgear for every class', () => {
+    for (const r of content.races.values()) expect(L[`head:${r.id}`], r.id).toBeDefined();
+    for (const c of content.classes.values()) {
+      expect(L[`body:${c.id}`], c.id).toBeDefined();
+      expect(L[`hat:${c.id}`], c.id).toBeDefined();
+    }
+    expect(Object.keys(L).filter((k) => k.startsWith('hair:')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('layers are 24x24 and every key has a colour', () => {
+    const dynamic = new Set('tsSjhHvcC');
+    for (const [name, rows] of Object.entries(L)) {
+      expect(rows, name).toHaveLength(BUST);
+      for (const row of rows) {
+        expect(row.length, name).toBe(BUST);
+        for (const ch of row) if (ch !== '.' && !dynamic.has(ch)) expect(PORTRAIT_DATA.colors[ch], `${name} key "${ch}"`).toBeDefined();
       }
     }
   });

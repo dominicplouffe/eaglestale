@@ -282,8 +282,8 @@ function shopStill(ctx: Ctx): void {
 
 function drawShop(ctx: Ctx, t: number): void {
   ctx.drawImage(still('shop', shopStill), 0, 0);
-  // Dusty Gizzard, a gnome shopkeeper, behind the counter.
-  drawBust(ctx, 124, 60, 3, { race: 'gnome', cls: 'minstrel', hairStyle: 'shaggy', hairColor: '#d8d8d8', outfit: '#6a4a8a' });
+  // Dusty Gizzard, a gnome in a wizard's hat (he sells potions), behind the counter.
+  drawBust(ctx, 124, 48, 3, { race: 'gnome', cls: 'mage', hairStyle: 'shaggy', hairColor: '#d8d8d8', outfit: '#6a4a8a' });
   rect(ctx, '#14121c', 0, 118, VIEW_W, 22);
   planks(ctx, 0, 120, VIEW_W, 20, '#7a5230', 9, 16);
   rect(ctx, '#b07a48', 0, 119, VIEW_W, 2);
@@ -325,12 +325,6 @@ function templeStill(ctx: Ctx): void {
       rect(ctx, dark ? '#2e2840' : '#4a4260', x, y, 18, 9);
     }
   }
-  // Altar.
-  rect(ctx, '#14121c', 120, 101, 80, 27);
-  rect(ctx, '#8a8a96', 122, 103, 76, 24);
-  rect(ctx, '#b0b0bc', 122, 103, 76, 3);
-  rect(ctx, '#f0f0e0', 130, 106, 60, 14); // altar cloth
-  rect(ctx, '#e8c34a', 156, 106, 8, 14);
   for (const x of [108, 206]) {
     rect(ctx, '#d8d8d8', x, 96, 4, 28);
     rect(ctx, '#f2efe6', x, 96, 1, 28);
@@ -352,13 +346,18 @@ function drawTemple(ctx: Ctx, t: number): void {
     ctx.fill();
   }
   ctx.restore();
-  // The priest stands behind the altar.
-  drawBust(ctx, 136, 40, 2, { race: 'human', cls: 'healer', hairStyle: 'short', hairColor: '#d8d8d8' });
-  rect(ctx, '#14121c', 120, 86, 80, 2);
+  // The priest stands behind the altar, which is drawn in front of them.
+  drawBust(ctx, 136, 60, 2, { race: 'human', cls: 'healer', hairStyle: 'short', hairColor: '#d8d8d8' });
+  rect(ctx, '#14121c', 120, 101, 80, 27);
+  rect(ctx, '#8a8a96', 122, 103, 76, 24);
+  rect(ctx, '#b0b0bc', 122, 103, 76, 3);
+  rect(ctx, '#f0f0e0', 130, 106, 60, 14); // altar cloth
+  rect(ctx, '#e8c34a', 156, 106, 8, 14);
+  // The glowing pinion-shaped light resting on the altar.
   const pulse = 0.6 + 0.4 * Math.sin(t * 2);
-  glow(ctx, 160, 92, 30, '#ffe08c', 0.5 + pulse * 0.3);
-  rect(ctx, '#ffd870', 158, 86, 4, 12); // a pinion-shaped light
-  rect(ctx, '#fff6c0', 159, 86, 1, 10);
+  glow(ctx, 160, 96, 30, '#ffe08c', 0.5 + pulse * 0.3);
+  rect(ctx, '#ffd870', 158, 89, 4, 12);
+  rect(ctx, '#fff6c0', 159, 89, 1, 10);
   for (const x of [110, 208]) flame(ctx, x, 95, t, 1, x);
 }
 
@@ -402,7 +401,7 @@ function innStill(ctx: Ctx): void {
 function drawInn(ctx: Ctx, t: number): void {
   ctx.drawImage(still('inn', innStill), 0, 0);
   // The innkeeper, half-hidden behind the near table.
-  drawBust(ctx, 18, 68, 2, { race: 'hobbit', cls: 'ranger', hairStyle: 'long', hairColor: '#a04a2a', outfit: '#6a8a4a' });
+  drawBust(ctx, 18, 68, 2, { race: 'hobbit', cls: 'minstrel', hairStyle: 'curly', hairColor: '#a04a2a', outfit: '#6a8a4a' });
   rect(ctx, '#14121c', 15, 116, 68, 2);
   rect(ctx, '#7a5230', 16, 117, 64, 7);
   rect(ctx, '#a87a48', 16, 117, 64, 1);
