@@ -3,6 +3,7 @@ import type { Game, Screen } from '../engine/game';
 import { BATTLE_SPEEDS, battleSpeed } from '../engine/settings';
 import type { LogStyle, MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W } from '../gfx/dungeonView';
+import { drawText, textWidth } from '../gfx/font';
 import { drawBattleBackdrop } from '../gfx/scenes';
 import { drawSprite } from '../gfx/sprites';
 import { FRONT_ROW_SIZE, isAlive, knownSpells } from '../rules/character';
@@ -95,25 +96,16 @@ class CombatScreen implements Screen {
         const m = members[k];
         drawSprite(ctx, g.def.sprite, x, m.asleep > 0 ? y + 4 : y, scale, g.def.palette ?? {}, k % 2 === 1);
         if (m.asleep > 0) {
-          ctx.fillStyle = '#9ad8ff';
-          ctx.font = 'bold 10px monospace';
-          ctx.fillText('z', x + SPRITE_PX * scale - 8, y + 6 - ((t * 8) % 4));
+          drawText(ctx, 'z', x + SPRITE_PX * scale - 8, y - 2 - Math.floor((t * 8) % 4), { color: '#9ad8ff', outline: '#0e0a1c' });
         }
       }
-      ctx.font = 'bold 9px monospace';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#000';
       const label = `${this.groupLabel(gi)}${g.distance > 0 ? ' (far)' : ''}`;
-      const half = ctx.measureText(label).width / 2;
-      const lx = Math.min(VIEW_W - half - 4, Math.max(half + 4, cx)) - half;
-      ctx.strokeText(label, lx, base + 12);
-      ctx.fillStyle = g.distance > 0 ? '#9a90b8' : '#e8e2f4';
-      ctx.fillText(label, lx, base + 12);
+      const half = textWidth(label) / 2;
+      const lx = Math.min(VIEW_W - half - 4, Math.max(half + 4, cx));
+      drawText(ctx, label, lx, base + 4, { color: g.distance > 0 ? '#9a90b8' : '#e8e2f4', outline: '#0e0a1c', align: 'center' });
     });
     ctx.restore();
-    ctx.fillStyle = '#e8c34a';
-    ctx.font = '9px monospace';
-    ctx.fillText(`Round ${this.battle.round}`, 6, VIEW_H - 6);
+    drawText(ctx, `Round ${this.battle.round}`, 5, VIEW_H - 13, { color: '#e8c34a', outline: '#0e0a1c' });
   }
 
   // ---- Choosing orders -----------------------------------------------------

@@ -2,6 +2,7 @@ import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
 import { el, type MenuItem } from '../engine/shell';
 import { VIEW_H, VIEW_W, renderDungeon } from '../gfx/dungeonView';
+import { drawText } from '../gfx/font';
 import { MAP_COLORS, drawMinimap } from '../gfx/minimap';
 import { FRONT_ROW_SIZE, MAX_INVENTORY, isAlive, restoreFully } from '../rules/character';
 import type { EncounterSpec } from '../rules/combat';
@@ -46,10 +47,8 @@ class DungeonView {
     this.explore();
     shell.setDraw((ctx, t) => {
       renderDungeon(ctx, { level: this.level, x: this.pos.x, y: this.pos.y, dir: this.pos.dir }, t);
-      ctx.fillStyle = '#e8e2f4';
-      ctx.font = '9px monospace';
-      ctx.fillText(DIRS[this.pos.dir].name, 6, VIEW_H - 6);
-      ctx.fillText(`${this.level.name}`, VIEW_W - 6 - ctx.measureText(this.level.name).width, VIEW_H - 6);
+      drawText(ctx, DIRS[this.pos.dir].name, 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c' });
+      drawText(ctx, this.level.name, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
     });
     shell.setKeyHandler((e) => {
       const moves: Record<string, () => void> = {
