@@ -31,7 +31,7 @@ Works in any modern browser on macOS or Linux (and Windows). Saves go to the bro
 
 - **Guild**: create heroes (choose race, class and spend bonus points) or hit *Quick-start party*. Reorder the party: slots 1-3 are the front row, 4-6 the back row.
 - **Emporium**: buy and sell equipment (selling pays half price). Each item shows how it compares with what the selected hero has on, and *Buy & equip* puts it on straight away.
-- **Temple**: revive the dead (if you can't cover the fee, the temple takes what gold you have) and heal wounds. **Inn**: rest (heals HP/SP) and save.
+- **Temple**: revive the dead (if you can't cover the fee, the temple takes what gold you have) and heal wounds (1g per 5 HP). **Inn**: rest (heals HP/SP) and save.
 - **Combat rules in brief**: only the front row can melee, and only against the group at melee range. Archers, slingers and spells reach every group.
   Distant groups march closer each round unless they have ranged attacks. Sleeping monsters are hit automatically and wake when damaged.
 
