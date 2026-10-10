@@ -19,9 +19,11 @@ export class Shell {
   private readonly logEl = document.getElementById('log') as HTMLElement;
   private readonly menuEl = document.getElementById('menu') as HTMLElement;
   private readonly overlayEl = document.getElementById('overlay') as HTMLElement;
+  private readonly inspectEl = document.getElementById('inspect') as HTMLElement;
   private readonly locationEl = document.getElementById('location') as HTMLElement;
   private menuItems: MenuItem[] = [];
   private keyHandler: KeyHandler | null = null;
+  private onInspectClose: (() => void) | null = null;
   private draw: DrawFn | null = null;
   private globalKeys = new Map<string, () => void>();
 
@@ -103,6 +105,22 @@ export class Shell {
     return !this.overlayEl.hidden;
   }
 
+  // ---- Inspect layer -------------------------------------------------------
+
+  /**
+   * A read-only panel above the overlay, independent of the screen's own overlay and keys.
+   * While it is open, Escape calls `onClose` and other keys don't reach the screen.
+   */
+  setInspect(node: HTMLElement | null, onClose: (() => void) | null = null): void {
+    const opening = this.inspectEl.hidden;
+    this.inspectEl.replaceChildren();
+    if (node) this.inspectEl.appendChild(node);
+    this.inspectEl.hidden = !node;
+    this.onInspectClose = node ? onClose : null;
+    // Keep the scroll position when the same panel is refreshed in place.
+    if (node && opening) this.inspectEl.scrollTop = 0;
+  }
+
   // ---- Keyboard ------------------------------------------------------------
 
   /** A screen-specific handler runs before menu hotkeys. Return true if the key was handled. */
@@ -119,6 +137,13 @@ export class Shell {
     if (global) {
       e.preventDefault();
       global();
+      return;
+    }
+    if (!this.inspectEl.hidden) {
+      if (key === 'escape') {
+        e.preventDefault();
+        this.onInspectClose?.();
+      }
       return;
     }
     if (this.keyHandler?.(e)) {

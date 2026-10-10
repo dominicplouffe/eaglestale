@@ -3,22 +3,12 @@ import type { Game, Screen } from '../engine/game';
 import { el } from '../engine/shell';
 import { drawPlace } from '../gfx/scenes';
 import { MAX_INVENTORY, canUse } from '../rules/character';
-import { diceText } from '../rules/rng';
 import { buyItem, sellItem, sellPrice, type TradeResult } from '../rules/shop';
-import { SLOTS, type ItemDef } from '../rules/types';
+import { SLOTS } from '../rules/types';
+import { itemStats } from '../ui/inspect';
 import { townScreen } from './town';
 
 const SHOP_ID = 'emporium';
-
-function itemStats(item: ItemDef): string {
-  const bits: string[] = [];
-  if (item.damage) bits.push(`dmg ${diceText(item.damage)}`);
-  if (item.hit) bits.push(`hit +${item.hit}`);
-  if (item.ac) bits.push(`def +${item.ac}`);
-  if (item.ranged) bits.push('ranged');
-  if (item.use) bits.push(item.use.kind === 'heal' ? `heals ${item.use.amount}` : `+${item.use.amount} SP`);
-  return bits.join(', ');
-}
 
 export const shopScreen: Screen = {
   enter(game: Game) {

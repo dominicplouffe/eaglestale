@@ -4,8 +4,13 @@ import { drawPortrait } from '../gfx/portrait';
 import { FRONT_ROW_SIZE, isAlive } from '../rules/character';
 import type { Character } from '../rules/types';
 
-/** Renders the six party cards in the side panel. */
-export function renderPartyPanel(root: HTMLElement, party: Character[], activeId?: string): void {
+/** Renders the six party cards in the side panel. Clicking a card calls `onSelect` with that hero's id. */
+export function renderPartyPanel(
+  root: HTMLElement,
+  party: Character[],
+  activeId: string | undefined,
+  onSelect: (id: string) => void,
+): void {
   root.replaceChildren();
   if (party.length === 0) {
     root.append(el('div', { class: 'dim', text: 'No party yet. Visit the Guild.' }));
@@ -38,6 +43,13 @@ export function renderPartyPanel(root: HTMLElement, party: Character[], activeId
     if (!alive) classes.push('dead');
     if (i >= FRONT_ROW_SIZE) classes.push('row-back');
     if (c.id === activeId) classes.push('active');
-    root.append(el('div', { class: classes.join(' ') }, portrait, info));
+    root.append(
+      el(
+        'div',
+        { class: classes.join(' '), title: 'Click to see attributes and pack', onclick: () => onSelect(c.id) },
+        portrait,
+        info,
+      ),
+    );
   });
 }

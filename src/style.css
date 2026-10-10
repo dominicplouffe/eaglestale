@@ -24,6 +24,8 @@ button { font: inherit; color: inherit; }
 #view { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 #overlay { position: absolute; inset: 0; background: rgba(14, 10, 28, 0.94); overflow: auto; padding: 12px; }
 #overlay[hidden] { display: none; }
+#inspect { position: absolute; inset: 0; background: rgba(14, 10, 28, 0.97); overflow: auto; padding: 12px; }
+#inspect[hidden] { display: none; }
 #side { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: auto; }
 #minimap { width: 150px; height: 150px; align-self: center; image-rendering: pixelated; background: #000; border: 2px solid var(--line); }
 #bottom { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 8px; height: 190px; }
@@ -43,6 +45,8 @@ button { font: inherit; color: inherit; }
 .btn.small { padding: 1px 6px; font-size: 12px; }
 .btn.active { background: var(--accent); }
 .party-card { background: var(--panel); border: 2px solid var(--line); padding: 2px 6px; display: grid; grid-template-columns: 36px 1fr; gap: 6px; align-items: center; }
+.party-card { cursor: pointer; }
+.party-card:hover { border-color: var(--accent); }
 .party-card.active { border-color: var(--gold); }
 .party-card.dead { opacity: 0.55; }
 .party-card.row-back { margin-left: 18px; }
