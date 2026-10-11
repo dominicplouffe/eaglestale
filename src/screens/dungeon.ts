@@ -5,7 +5,7 @@ import { artPixels } from '../gfx/art';
 import { mixRGB, parseHex, toHex } from '../gfx/colors';
 import { VIEW_H, VIEW_W, renderDungeon, type ViewSprite } from '../gfx/dungeonView';
 import { drawText } from '../gfx/font';
-import { MAP_COLORS, drawMinimap } from '../gfx/minimap';
+import { MAP_COLORS, drawMinimap, fitToDisplay } from '../gfx/minimap';
 import { FRONT_ROW_SIZE, isAlive, restoreFully } from '../rules/character';
 import type { EncounterSpec } from '../rules/combat';
 import { DIRS, areaAt, effectiveTile, isSpecialTile, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
@@ -270,6 +270,7 @@ class DungeonView {
       this.inCity ? `${this.dungeon.name} - ${this.placeName}` : `${this.dungeon.name} - ${this.level.name} (level ${this.pos.level + 1})`,
     );
     shell.minimap.hidden = false;
+    fitToDisplay(shell.minimap);
     const set = new Set(this.game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
     drawMinimap(shell.minimap, this.level, set, this.pos, this.at);
   }
@@ -850,5 +851,8 @@ class DungeonView {
         canvas,
       ),
     );
+    // Now it is on screen, redraw it at the size it is shown.
+    fitToDisplay(canvas);
+    drawMinimap(canvas, this.level, explored, this.pos, this.at);
   }
 }

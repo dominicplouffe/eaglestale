@@ -13,6 +13,17 @@ export const MAP_COLORS = {
   you: '#ff6a6a',
 };
 
+/** Matches a canvas's pixels to the size it is shown at, so the map stays sharp however big it is drawn. */
+export function fitToDisplay(canvas: HTMLCanvasElement): void {
+  const scale = window.devicePixelRatio || 1;
+  const w = Math.round(canvas.clientWidth * scale);
+  const h = Math.round(canvas.clientHeight * scale);
+  if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+}
+
 /** Draws the auto-map: only tiles in `explored` (and the walls next to them) are shown. */
 export function drawMinimap(
   canvas: HTMLCanvasElement,
