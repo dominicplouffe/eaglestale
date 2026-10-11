@@ -19,7 +19,7 @@ import {
 import { giveItem, questEvent } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { canCast } from '../rules/spells';
-import type { Character, DungeonLevel, DungeonTheme, SpellDef } from '../rules/types';
+import type { Assist, Character, DungeonLevel, DungeonTheme, SpellDef } from '../rules/types';
 
 export interface BattleHooks {
   onWin: () => void;
@@ -42,6 +42,8 @@ const DEATH_MS = 520;
 const LUNGE_MS = 200;
 const FLOAT_MS = 900;
 const CARD_FLASH_MS = 320;
+/** How long an ally takes to sweep across the battle. */
+const FLYOVER_MS = 1300;
 
 /** The room battles are drawn in: a small hall in the level's own textures. */
 const ARENA_GRID = ['#####', '#...#', '#...#', '#...#', '#####'];
@@ -56,8 +58,8 @@ function arenaFor(theme: DungeonTheme): DungeonLevel {
 }
 
 /** Starts a battle against the given groups; `hooks` decide where the game goes afterwards. */
-export function startBattle(game: Game, specs: EncounterSpec[], theme: DungeonTheme, hooks: BattleHooks): void {
-  game.go(new CombatScreen(specs, theme, hooks));
+export function startBattle(game: Game, specs: EncounterSpec[], theme: DungeonTheme, hooks: BattleHooks, assist?: Assist): void {
+  game.go(new CombatScreen(specs, theme, hooks, assist));
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -129,16 +131,19 @@ class CombatScreen implements Screen {
   private pendingSpells: PendingSpell[] = [];
   private flares: Flare[] = [];
   private heroFlash = new Map<string, { cls: 'hurt' | 'healed'; until: number }>();
+  /** An ally sweeping across the scene (when it arrived, and what it looks like). */
+  private flyover: { art: string; born: number } | null = null;
 
   constructor(
     private readonly specs: EncounterSpec[],
     private readonly theme: DungeonTheme,
     private readonly hooks: BattleHooks,
+    private readonly assist?: Assist,
   ) {}
 
   enter(game: Game): void {
     this.game = game;
-    this.battle = new Battle(game.party, this.specs, gameRng);
+    this.battle = new Battle(game.party, this.specs, gameRng, this.assist);
     this.syncShown();
     game.audio.music('battle');
     game.shell.setLocation('Battle!');
@@ -250,7 +255,35 @@ class CombatScreen implements Screen {
       case 'monsterMiss':
         this.lunges.set(fx.group, now);
         return;
+      case 'assist':
+        this.flyover = { art: fx.art ?? '', born: now };
+        this.shakeUntil = now + 300;
+        return;
     }
+  }
+
+  /** The ally swoops in from the left, low over the foes, and away to the right, in a flash of light. */
+  private drawFlyover(ctx: CanvasRenderingContext2D, now: number): void {
+    const f = this.flyover;
+    if (!f) return;
+    const p = (now - f.born) / FLYOVER_MS;
+    if (p >= 1) {
+      this.flyover = null;
+      return;
+    }
+    const glow = Math.max(0, 1 - p * 2.5);
+    if (glow > 0) {
+      ctx.fillStyle = `rgba(255, 240, 190, ${0.55 * glow})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+    if (!hasArt(f.art)) return;
+    const scale = 4;
+    const size = ART_SIZE * scale;
+    const x = -size + p * (VIEW_W + size * 2);
+    const y = 10 + Math.sin(p * Math.PI) * 40;
+    ctx.imageSmoothingEnabled = false;
+    const img = artCanvas(f.art);
+    if (img) ctx.drawImage(img, Math.round(x), Math.round(y), size, size);
   }
 
   // ---- Drawing -------------------------------------------------------------
@@ -319,6 +352,7 @@ class CombatScreen implements Screen {
 
     for (const p of this.pendingSpells.splice(0)) this.spawnSpell(p, centres, now);
     this.drawFlares(ctx, now);
+    this.drawFlyover(ctx, now);
     this.drawParticles(ctx, dt);
     this.drawFloaters(ctx, spots, centres, now);
 

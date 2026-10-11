@@ -5,6 +5,8 @@ import { classes } from './classes';
 import { dungeons } from './dungeons';
 import { gurgle } from './gurgle';
 import { clocktower } from './clocktower';
+import { spire } from './spire';
+import { wood } from './wood';
 import { items } from './items';
 import { monsters } from './monsters';
 import { races } from './races';
@@ -19,7 +21,7 @@ export const basePack: ContentPack = {
   items,
   spells,
   monsters,
-  dungeons: [talonreach, ...dungeons, gurgle, clocktower],
+  dungeons: [talonreach, ...dungeons, gurgle, clocktower, wood, spire],
   shops,
   quests,
   feathers,

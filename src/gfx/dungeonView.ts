@@ -348,8 +348,13 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
       const above = lm.above.map((faces, i) => faces[(hit.cellX + hit.cellY + i) % faces.length]);
       column(buf, x, hit.dist, hit.side, hit.u, hit.tile === '&' ? lm.door : lm.ground, flicker, true, above);
     } else {
-      const above = tex.upper.length ? [tex.upper[(featured >>> 3) % tex.upper.length]] : [];
-      column(buf, x, hit.dist, hit.side, hit.u, wallTex, flicker, false, above.slice(0, tex.storeys - 1));
+      // Storeys above the ground floor: the top one (if it has its own faces, e.g. a ragged canopy) and the rest.
+      const above: Texture[] = [];
+      for (let k = tex.storeys - 1; k >= 1; k--) {
+        const faces = k === tex.storeys - 1 && tex.top.length ? tex.top : tex.upper;
+        if (faces.length) above.push(faces[((featured >>> 3) + k) % faces.length]);
+      }
+      column(buf, x, hit.dist, hit.side, hit.u, wallTex, flicker, tex.top.length > 0, above);
     }
     layers.length = 0;
     for (const d of hit.doors) layers.push({ dist: d.dist, draw: () => column(buf, x, d.dist, d.side, d.u, tex.door, flicker, true) });

@@ -12,7 +12,7 @@ import { DIRS, areaAt, effectiveTile, isSpecialTile, isWalkable, levelKey, rollE
 import { giveReward, lockedBecause, offerFeathers, questEvent, startQuest, useUpKey } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { movePartyMember, type DungeonPosition } from '../rules/state';
-import type { DungeonDef, DungeonLevel, PlaceId, Special } from '../rules/types';
+import type { Assist, DungeonDef, DungeonLevel, PlaceId, Special } from '../rules/types';
 import { openCharSheet } from '../ui/charSheet';
 import { openJournal } from '../ui/journal';
 import { startBattle } from './combat';
@@ -67,18 +67,18 @@ export function cityStart(): DungeonPosition {
 }
 
 /**
- * Where the party comes out in town when they climb out of a dungeon: on the steps or grate they went
- * down, or in the street outside the door they went in by, facing the street.
+ * Where the party comes out when they climb out of a dungeon: on the steps, grate or path they took
+ * into it (in town or in another dungeon), or in the street outside the door they went in by.
  */
-function cityExit(dungeonId: string): DungeonPosition {
+function exitFrom(dungeonId: string): DungeonPosition {
   for (const d of content.dungeons.values()) {
-    if (!d.city) continue;
-    const level = d.levels[0];
-    for (const { x, y, special } of specialSquares(level)) {
-      if (special.kind === 'portal' && special.dungeon === dungeonId) return { dungeon: d.id, level: 0, x, y, dir: openDirection(level, x, y) };
-      if (special.kind === 'building' && special.dungeon === dungeonId) {
-        const out = DIRS.findIndex((dir) => isWalkable(tileAt(level, x + dir.dx, y + dir.dy)));
-        if (out >= 0) return { dungeon: d.id, level: 0, x: x + DIRS[out].dx, y: y + DIRS[out].dy, dir: out };
+    for (const [li, level] of d.levels.entries()) {
+      for (const { x, y, special } of specialSquares(level)) {
+        if (special.kind === 'portal' && special.dungeon === dungeonId) return { dungeon: d.id, level: li, x, y, dir: openDirection(level, x, y) };
+        if (special.kind === 'building' && special.dungeon === dungeonId) {
+          const out = DIRS.findIndex((dir) => isWalkable(tileAt(level, x + dir.dx, y + dir.dy)));
+          if (out >= 0) return { dungeon: d.id, level: li, x: x + DIRS[out].dx, y: y + DIRS[out].dy, dir: out };
+        }
       }
     }
   }
@@ -89,6 +89,9 @@ function openDirection(level: DungeonLevel, x: number, y: number): number {
   const found = DIRS.findIndex((d) => isWalkable(tileAt(level, x + d.dx, y + d.dy)));
   return found < 0 ? 0 : found;
 }
+
+/** Quests whose finishing ends the game. */
+const endingQuests = (): string[] => [...content.quests.values()].filter((q) => q.ending).map((q) => q.id);
 
 const PLACES: Record<Exclude<PlaceId, 'tower'>, Screen> = { guild: guildScreen, shop: shopScreen, temple: templeScreen, inn: innScreen };
 
@@ -175,7 +178,7 @@ class DungeonView {
           ascending: this.dungeon.ascending,
         },
         t,
-        this.inCity ? DAYLIGHT : 0,
+        this.level.theme.sky ? (this.level.theme.light ?? DAYLIGHT) : 0,
       );
       drawText(ctx, DIRS[this.pos.dir].name, 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c' });
       drawText(ctx, this.placeName, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
@@ -416,13 +419,19 @@ class DungeonView {
     const goingUp = tile === '<';
     const tower = !!this.dungeon.ascending;
     const toTown = goingUp && this.pos.level === 0;
+    const exit = toTown ? exitFrom(this.pos.dungeon) : null;
+    const outside = exit ? content.dungeon(exit.dungeon) : null;
+    // Out of doors (the Wood) there are paths, not stairs.
+    const outdoors = !!this.level.theme.sky;
+    const backTo = `Go back to ${outside?.levels[exit?.level ?? 0].name ?? 'the way out'}?`;
     const question = toTown
-      ? tower ? 'Go back down to the street?' : 'Climb back up to Talonreach?'
+      ? outside?.city && !outdoors ? (tower ? 'Go back down to the street?' : 'Climb back up to Talonreach?') : backTo
+      : outdoors ? (goingUp ? 'Go back the way you came?' : `Go on, deeper into ${this.dungeon.name}?`)
       : goingUp === !tower ? 'Climb the stairs up?' : 'Go down the stairs?';
     this.confirm(question, () => {
       this.game.audio.sfx('stairs');
-      if (toTown) {
-        this.game.state.location = cityExit(this.pos.dungeon);
+      if (exit) {
+        this.game.state.location = exit;
         this.game.go(dungeonScreen);
         return this.game.autosave();
       }
@@ -467,6 +476,7 @@ class DungeonView {
   /** Returning Aquila's feathers to the tower is how the city recovers. */
   private eagleTower(): void {
     const { game } = this;
+    const endingDone = endingQuests().filter((id) => game.state.quests[id]?.status === 'done');
     const lines = offerFeathers(game.state);
     if (lines.length === 0) {
       game.say(
@@ -482,6 +492,8 @@ class DungeonView {
     for (const line of lines) game.say(line, 'gold');
     game.refreshParty();
     game.autosave();
+    // The last feathers home: the story ends.
+    if (endingDone.length < endingQuests().filter((id) => game.state.quests[id]?.status === 'done').length) return game.go(victoryScreen);
     this.mainMenu();
   }
 
@@ -514,7 +526,7 @@ class DungeonView {
     }
     game.say(way.kind === 'building' ? (way.opened ?? intro) : intro, 'story');
     const target = content.dungeon(dungeonId);
-    const verb = way.kind === 'building' ? 'Go into' : target.ascending ? 'Go up into' : 'Go down into';
+    const verb = target.city ? 'Go home to' : way.kind === 'building' ? 'Go into' : target.ascending ? 'Go up into' : 'Go down into';
     this.confirm(`${verb} ${target.name}?`, () => {
       game.audio.sfx('stairs');
       game.state.location = { dungeon: target.id, level: 0, ...target.levels[0].start };
@@ -661,6 +673,7 @@ class DungeonView {
         this.fight(
           special.groups.map((g) => ({ ...g })),
           () => this.fightWon(special, flag),
+          special.assist,
         );
         return;
       case 'treasure':
@@ -712,18 +725,24 @@ class DungeonView {
   // ---- Combat & camp -------------------------------------------------------
 
   /** `onWin` returns true if it has already moved the game to another screen. */
-  private fight(specs: EncounterSpec[], onWin: () => boolean): void {
+  private fight(specs: EncounterSpec[], onWin: () => boolean, assist?: Assist): void {
     const { game } = this;
     game.state.stepsSinceFight = 0;
     game.audio.sfx('encounter');
     this.modal = true;
-    startBattle(game, specs, this.level.theme, {
-      onWin: () => {
-        if (!onWin()) game.go(dungeonScreen);
+    startBattle(
+      game,
+      specs,
+      this.level.theme,
+      {
+        onWin: () => {
+          if (!onWin()) game.go(dungeonScreen);
+        },
+        onFlee: () => game.go(dungeonScreen),
+        onDefeat: () => partyWiped(game),
       },
-      onFlee: () => game.go(dungeonScreen),
-      onDefeat: () => partyWiped(game),
-    });
+      assist,
+    );
   }
 
   private camp(): void {

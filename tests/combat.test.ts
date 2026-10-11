@@ -106,10 +106,10 @@ describe('battle', () => {
   });
 
   it('names unique monsters without "the" and others with it', () => {
-    const b = new Battle(standardParty(), [{ monster: 'malachar', count: 1 }, { monster: 'goblin', count: 1 }], new Rng(3));
+    const b = new Battle(standardParty(), [{ monster: 'pinion', count: 1 }, { monster: 'goblin', count: 1 }], new Rng(3));
     const log = [0, 1, 2].flatMap(() => b.resolveRound(autoOrders(b))).map((e) => e.text).join('\n');
-    expect(log).toMatch(/^Malachar the Plucker /m);
-    expect(log).not.toMatch(/the Malachar/i);
+    expect(log).toMatch(/^Professor Pinion /m);
+    expect(log).not.toMatch(/the Professor Pinion/i);
     expect(log).toMatch(/the Goblin/i);
   });
 
@@ -215,6 +215,24 @@ describe('higher spells and machines', () => {
     expect(castCampSpell(healer, 'revive', z)).toMatch(/back on their feet/);
     expect(z.hp).toBeGreaterThan(0);
     expect(castCampSpell(healer, 'revive', z)).toMatch(/alive and well/);
+  });
+
+  it('an ally arrives on its round, strikes every foe and raises the fallen', () => {
+    const a = makeHero('knight', 'A', 'human', 'a');
+    const z = makeHero('rogue', 'Z', 'human', 'z');
+    z.hp = 0;
+    const assist = { name: 'Aquila', round: 2, text: 'Aquila dives!', dice: [3, 1] as [number, number], heal: [5, 1] as [number, number] };
+    const b = new Battle([a, z], [{ monster: 'testcog', count: 2 }], new Rng(7), assist);
+    const first = b.resolveRound(new Map([[a.id, { kind: 'defend' }]]));
+    expect(first.some((e) => e.text === 'Aquila dives!')).toBe(false);
+    const hpBefore = b.groups[0].members.map((m) => m.hp);
+    const second = b.resolveRound(new Map([[a.id, { kind: 'defend' }]]));
+    expect(second[0].text).toBe('Aquila dives!');
+    expect(b.groups[0].members.map((m) => m.hp)).toEqual(hpBefore.map((hp) => hp - 3));
+    expect(z.hp).toBeGreaterThan(0);
+    // Once only.
+    const third = b.resolveRound(new Map([[a.id, { kind: 'defend' }]]));
+    expect(third.some((e) => e.text === 'Aquila dives!')).toBe(false);
   });
 
   it('every class learns its spells by level 12, and all of them exist', () => {

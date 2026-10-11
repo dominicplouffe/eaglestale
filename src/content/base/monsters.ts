@@ -151,22 +151,117 @@ export const monsters: MonsterDef[] = [
     attacks: [{ verb: 'throws a spanner at', dice: [2, 6, 3], ranged: true }],
     sprite: 'professor',
   },
+  // The Moulted Wood: the Fringe
+  {
+    id: 'thornwolf', name: 'Thorn Wolf', plural: 'Thorn Wolves', hp: [5, 8, 10], def: 12, toHit: 12, speed: 7, xp: 260, gold: [2, 8],
+    attacks: [{ verb: 'bites', dice: [2, 8, 4] }],
+    sprite: 'thornwolf',
+  },
+  {
+    id: 'bear', name: 'Bark Bear', plural: 'Bark Bears', hp: [7, 10, 14], def: 12, toHit: 12, speed: 3, xp: 360, gold: [3, 10],
+    attacks: [{ verb: 'mauls', dice: [2, 10, 5] }],
+    sprite: 'bear',
+  },
+  {
+    id: 'wisp', name: "Will-o'-the-Wisp", plural: "Will-o'-the-Wisps", hp: [3, 6, 8], def: 15, toHit: 12, speed: 8, xp: 240, gold: [0, 4],
+    attacks: [{ verb: 'flickers at', dice: [2, 6, 4], ranged: true }],
+    drops: [{ item: 'wisplight', chance: 0.5 }],
+    sprite: 'wisp',
+  },
+  {
+    id: 'thornling', name: 'Thornling', plural: 'Thornlings', hp: [3, 6, 6], def: 10, toHit: 11, speed: 5, xp: 140, gold: [0, 3],
+    attacks: [{ verb: 'scratches', dice: [1, 10, 4] }],
+    sprite: 'thornling',
+  },
+  {
+    id: 'druid', name: 'Druid of the Thorn', plural: 'Druids of the Thorn', hp: [4, 8, 12], def: 11, toHit: 12, speed: 4, xp: 300, gold: [5, 10],
+    attacks: [{ verb: 'calls thorns on', dice: [2, 8, 4], ranged: true }, { verb: 'whacks with a staff', dice: [1, 8, 3] }],
+    sprite: 'druid',
+  },
+
+  // The Moulted Wood: the Old Aviary
+  {
+    id: 'ghostbird', name: 'Ghost Songbird', plural: 'Ghost Songbirds', hp: [3, 8, 6], def: 13, toHit: 12, speed: 8, xp: 230, gold: [0, 2],
+    attacks: [{ verb: 'sings a mournful note at', dice: [2, 6, 4], ranged: true }],
+    sprite: 'crow', palette: { feather: '#b8d8ec', e: '#ffffff' },
+  },
+  {
+    id: 'keeperghost', name: 'Restless Keeper', plural: 'Restless Keepers', hp: [4, 8, 10], def: 13, toHit: 12, speed: 4, xp: 280, gold: [3, 8],
+    attacks: [{ verb: 'rattles a birdcage at', dice: [2, 8, 3] }, { verb: 'wails at', dice: [2, 6, 2], ranged: true }],
+    sprite: 'ghost', palette: { W: '#f4fff8', L: '#c8f0d8', M: '#90d0b0', N: '#5a9a7a', O: '#3a6a54', F: '#1e3a2e' },
+  },
+  {
+    id: 'warden', name: 'The Aviary Warden', plural: 'Aviary Wardens', unique: true, hp: [26, 10, 90], def: 13, toHit: 13, speed: 4, xp: 4000, gold: [15, 10], actions: 2,
+    attacks: [
+      { verb: 'rattles a ring of cage keys at', dice: [3, 8, 6] },
+      { verb: 'wails a lament over', dice: [2, 6, 4], all: true },
+    ],
+    sprite: 'ghost', palette: { W: '#fff8e0', L: '#f0e0b0', M: '#d8c088', N: '#a89060', O: '#806840', F: '#4a3a20' },
+  },
+
+  // The Moulted Wood: the Thorn Grove
+  {
+    id: 'archdruid', name: 'Archdruid Bramblebeard', plural: 'Archdruids', unique: true, hp: [28, 10, 100], def: 13, toHit: 14, speed: 5, xp: 5000, gold: [20, 10], actions: 2,
+    attacks: [
+      { verb: 'lashes with a thorn staff', dice: [3, 8, 8] },
+      { verb: 'calls a storm of thorns down on', dice: [2, 8, 4], all: true },
+      { verb: 'roots and strangles', dice: [2, 8, 6], ranged: true },
+    ],
+    sprite: 'druid', palette: { robe: '#8a6a2a' },
+  },
+
+  // Malachar's Featherless Spire
+  {
+    id: 'pluckedharpy', name: 'Plucked Harpy', plural: 'Plucked Harpies', hp: [5, 8, 14], def: 13, toHit: 13, speed: 7, xp: 380, gold: [4, 10],
+    attacks: [{ verb: 'rakes', dice: [2, 8, 6] }, { verb: 'shrieks at', dice: [2, 6, 4], ranged: true }],
+    sprite: 'harpy', palette: { H: '#9a9a9a', h: '#6a6a6a', q: '#3a3a3a', P: '#e8c8b0', p: '#b8907a', d: '#6a4a40' },
+  },
+  {
+    id: 'adept', name: "Malachar's Adept", plural: "Malachar's Adepts", hp: [5, 6, 16], def: 12, toHit: 14, speed: 4, xp: 420, gold: [6, 10],
+    attacks: [{ verb: 'hurls a hexbolt at', dice: [3, 6, 6], ranged: true }],
+    drops: [{ item: 'hexshard', chance: 0.6 }],
+    sprite: 'cultist', palette: { robe: '#2a1e3a', trim: '#b080ff' },
+  },
+  {
+    id: 'gargoyle', name: 'Bald Gargoyle', plural: 'Bald Gargoyles', hp: [6, 10, 20], def: 15, toHit: 14, speed: 4, xp: 520, gold: [4, 12],
+    attacks: [{ verb: 'claws', dice: [2, 10, 6] }],
+    sprite: 'gargoyle',
+  },
+  {
+    id: 'stormcrow', name: 'Storm Crow', plural: 'Storm Crows', hp: [4, 8, 12], def: 14, toHit: 14, speed: 9, xp: 400, gold: [2, 8],
+    attacks: [{ verb: 'strikes with lightning', dice: [2, 8, 5], ranged: true }],
+    sprite: 'crow',
+  },
+  {
+    id: 'pluckedknight', name: 'Plucked Knight', plural: 'Plucked Knights', hp: [6, 8, 20], def: 15, toHit: 15, speed: 3, xp: 560, gold: [6, 12],
+    attacks: [{ verb: 'cleaves', dice: [2, 10, 8] }],
+    sprite: 'boneknight', palette: { armour: '#3a2e4a' },
+  },
+  {
+    id: 'stormroc', name: 'The Storm Roc', plural: 'Storm Rocs', unique: true, hp: [28, 10, 90], def: 14, toHit: 14, speed: 8, xp: 6000, gold: [20, 10], actions: 2,
+    attacks: [
+      { verb: 'rakes with lightning talons', dice: [3, 10, 8] },
+      { verb: 'beats up a thunderstorm over', dice: [2, 8, 4], all: true },
+    ],
+    sprite: 'eagle',
+    palette: { W: '#c8c8e8', w: '#9898c0', m: '#6a6a98', L: '#7a7ab0', G: '#4a4a80', g: '#363670', b: '#28285a', B: '#1a1a40', Y: '#f0e060', y: '#c0a030' },
+  },
   {
     id: 'malachar',
     name: 'Malachar the Plucker',
     plural: 'Malachars',
     unique: true,
-    hp: [8, 8, 24],
-    def: 9,
-    toHit: 7,
-    speed: 5,
-    xp: 700,
-    gold: [20, 20],
+    hp: [36, 10, 200],
+    def: 16,
+    toHit: 16,
+    speed: 6,
+    xp: 8000,
+    gold: [40, 20],
     actions: 2,
     attacks: [
-      { verb: 'plucks', dice: [2, 6] },
-      { verb: 'hurls a hexbolt at', dice: [2, 6], ranged: true },
-      { verb: 'unleashes a Moulting Storm on', dice: [1, 6], all: true },
+      { verb: 'plucks', dice: [3, 10, 8] },
+      { verb: 'hurls a hexbolt at', dice: [3, 8, 6], ranged: true },
+      { verb: 'unleashes a Moulting Storm on', dice: [3, 8, 4], all: true },
     ],
     sprite: 'malachar',
   },

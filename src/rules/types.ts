@@ -143,6 +143,19 @@ export interface EncounterEntry {
   weight: number;
 }
 
+/** Someone who comes to the party's aid in a fight (Aquila, say), at the start of a given round. */
+export interface Assist {
+  name: string;
+  round: number;
+  text: string;
+  /** Damage to every enemy. */
+  dice: Dice;
+  /** HP restored to every hero; the fallen get back up too. */
+  heal?: Dice;
+  /** A drawing (see gfx/art) that sweeps across the battle. */
+  art?: string;
+}
+
 /** What a won fight, a found treasure or a finished quest gives the party. */
 export interface Reward {
   gold?: number;
@@ -183,6 +196,8 @@ export type Special =
       flag?: string;
       /** An ambush: the foes aren't seen standing there before the fight. */
       hidden?: boolean;
+      /** Help that arrives during the fight. */
+      assist?: Assist;
     }
   | {
       /**
@@ -304,12 +319,14 @@ export interface DungeonTheme {
   /**
    * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
    * blocks), 'rune' (dressed stone with glowing runes), 'sewer' (wet brick and pipes), 'city'
-   * (timber-framed houses on cobbles) or 'clockwork' (brass plates, panelling and turning gears).
-   * Defaults to 'brick'.
+   * (timber-framed houses on cobbles), 'clockwork' (brass plates, panelling and turning gears) or
+   * 'forest' (tall trees whose canopy meets the sky). Defaults to 'brick'.
    */
-  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city' | 'clockwork';
+  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city' | 'clockwork' | 'forest';
   /** Outdoors: the colour of the sky where it meets the rooftops (there is no ceiling). */
   sky?: string;
+  /** Outdoors: how bright it is even far away (0-1; under trees it's darker than in the street). */
+  light?: number;
 }
 
 export interface DungeonDef {
@@ -382,6 +399,8 @@ export interface QuestDef {
   done: string;
   /** Quests that start when this one is finished (how the main story moves on). */
   next?: string[];
+  /** Finishing it ends the game: the victory screen follows. */
+  ending?: boolean;
 }
 
 /** A bundle of game content. Register more packs to extend the game without touching engine code. */

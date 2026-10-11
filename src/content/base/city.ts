@@ -115,8 +115,13 @@ export const talonreach: DungeonDef = {
         },
         X: {
           kind: 'building',
-          name: 'the East Gate',
-          text: 'The East Gate is barred. A notice says: ROAD TO THE MOULTED WOOD CLOSED BY ORDER OF THE MAYOR. TOO MANY TREES.',
+          name: 'The East Gate',
+          dungeon: 'wood',
+          feathers: 8,
+          flag: 'wood-entered',
+          text: 'The East Gate is barred. A notice says: ROAD TO THE MOULTED WOOD CLOSED BY ORDER OF THE MAYOR. TOO MANY TREES. The guards say they will open it for "proper heroes".',
+          opened: 'The gate guards see the golden glow of the feathers you carry, salute, and haul the East Gate open. Beyond it, the road runs into a wood of grey, drifting feathers.',
+          hotkey: 'x',
         },
         q: {
           kind: 'building',

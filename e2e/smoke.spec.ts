@@ -224,3 +224,37 @@ test("the Clocktower opens to Pinion's letter, and its stairs lead back down to 
   await page.keyboard.press('y');
   await expect(page.locator('#location')).toHaveText('Talonreach - Clock Lane');
 });
+
+test('the East Gate opens for eight feathers, and the twelfth feather ends the story', async ({ page }) => {
+  await startWithParty(page);
+  const setUp = (script: string) => page.evaluate(script);
+  const go = (x: number, y: number, dir: number) =>
+    setUp(`import('/src/screens/dungeon.ts').then(({ dungeonScreen }) => {
+      const g = window.__game; g.state.location = { dungeon: 'talonreach', level: 0, x: ${x}, y: ${y}, dir: ${dir} }; g.go(dungeonScreen);
+    })`);
+  await go(33, 10, 1);
+  await page.keyboard.press('ArrowUp');
+  await expect(log(page).last()).toHaveText(/You need 8 of Aquila's feathers/);
+  await setUp(`window.__game.state.feathers = ['crown', 'grave', 'altar', 'sceptre', 'drain', 'cog', 'pendulum', 'tin']`);
+  await page.keyboard.press('ArrowUp');
+  await expect(menuTitle(page)).toHaveText('Go into The Moulted Wood?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText('The Moulted Wood - The Fringe (level 1)');
+  await page.keyboard.press('e');
+  await expect(menuTitle(page)).toHaveText('Go back to Talonreach?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText('Talonreach - East Gate Road');
+
+  // All twelve feathers found, eleven already home: the last one ends the story.
+  await setUp(`(() => {
+    const s = window.__game.state;
+    s.feathers = ['crown', 'grave', 'altar', 'sceptre', 'drain', 'cog', 'pendulum', 'tin', 'songbird', 'thorn', 'storm', 'heart'];
+    s.offered = 11;
+    for (const id of ['mq-roost', 'mq-gurgle', 'mq-clocktower', 'mq-wood']) s.quests[id] = { step: 9, count: 0, status: 'done' };
+    s.quests['mq-spire'] = { step: 2, count: 0, status: 'active' };
+  })()`);
+  await go(15, 10, 1);
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('#location')).toHaveText('Victory!');
+  await expect(log(page).last()).toHaveText(/Eagle's Tale is complete/);
+});

@@ -17,7 +17,7 @@ const main = (s: GameState): string | undefined => activeQuests(s).find((q) => q
 const step = (s: GameState, id: string): number => s.quests[id].step;
 
 describe('the campaign', () => {
-  it('runs from the Roost through the Gurgle and the Clocktower to the Moulted Wood', () => {
+  it('runs from the Roost through every chapter to the end', () => {
     const s = newCampaign();
     expect(main(s)).toBe('mq-roost');
 
@@ -57,6 +57,23 @@ describe('the campaign', () => {
     expect(later.some((line) => line.includes('Eight feathers'))).toBe(true);
     expect(s.quests['mq-clocktower'].status).toBe('done');
     expect(main(s)).toBe('mq-wood');
+
+    // Through the East Gate into the Moulted Wood, and on to the Spire.
+    questEvent(s, { kind: 'flag', flag: 'wood-entered' });
+    giveReward(s, { feather: 'songbird' });
+    giveReward(s, { feather: 'thorn' });
+    expect(step(s, 'mq-wood')).toBe(2);
+    offerFeathers(s);
+    expect(main(s)).toBe('mq-spire');
+    questEvent(s, { kind: 'flag', flag: 'spire-entered' });
+    giveReward(s, { feather: 'storm' });
+    giveReward(s, { feather: 'heart' });
+    expect(s.won).toBe(false);
+    const home = offerFeathers(s);
+    expect(home.some((line) => line.includes('Aquila is home'))).toBe(true);
+    expect(s.quests['mq-spire'].status).toBe('done');
+    expect(s.won).toBe(true);
+    expect(main(s)).toBeUndefined();
   });
 
   it("the Gurgle's side tasks finish when their flags are set, and bounties need the Guild", () => {
@@ -77,11 +94,9 @@ describe('the campaign', () => {
     expect(hero.inventory).toContain('gatorarmor');
   });
 
-  it('every main quest leads somewhere until the chapters still being built', () => {
-    for (const q of content.quests.values()) {
-      if (q.kind !== 'main') continue;
-      if (q.id === 'mq-wood') continue;
-      expect(q.next?.length, q.id).toBeGreaterThan(0);
-    }
+  it('every main quest leads on to the next, and exactly one ends the game', () => {
+    const main = [...content.quests.values()].filter((q) => q.kind === 'main');
+    for (const q of main) if (!q.ending) expect(q.next?.length ?? 0, q.id).toBeGreaterThan(0);
+    expect(main.filter((q) => q.ending)).toHaveLength(1);
   });
 });
