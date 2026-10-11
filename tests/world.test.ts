@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateMaze } from '../src/content/maze';
 import { content } from '../src/content';
-import { rollEncounter, turn } from '../src/rules/dungeon';
+import { rollEncounter, specialKey, turn } from '../src/rules/dungeon';
 import { Rng } from '../src/rules/rng';
 import {
   addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, serialize, startingState,
@@ -107,6 +107,25 @@ describe('party and saves', () => {
     expect(loaded.state.story['aquila-home']).toBe(true);
     expect(loaded.state.quests['mq-nest']?.status).toBe('active');
     expect(loaded.notes.some((n) => n.includes("Aquila's Old Nest"))).toBe(true);
+  });
+
+  it("gives back a story key a full pack once lost, while the way it opens is still shut", () => {
+    // Grackle beaten, but the Sewer Grate Key went missing (older versions left it behind).
+    const sanctum = content.dungeon('roost').levels[2];
+    const y = sanctum.grid.findIndex((row) => row.includes('G'));
+    const x = sanctum.grid[y].indexOf('G');
+    const s = startingState();
+    const hero = makeHero('knight', 'Sir Bonk');
+    s.roster.push(hero);
+    s.party.push(hero.id);
+    s.flags[specialKey('roost', 2, x, y)] = true;
+    const loaded = deserialize(serialize(s));
+    expect(loaded.ok && loaded.state.roster[0].inventory).toEqual(['sewerkey']);
+    expect(loaded.ok && loaded.notes.some((n) => /Lost and found: Sir Bonk takes the Sewer Grate Key/.test(n))).toBe(true);
+    // Once the grate has been opened for good, the key has no more use.
+    s.story['gurgle-entered'] = true;
+    const later = deserialize(serialize(s));
+    expect(later.ok && later.state.roster[0].inventory).toEqual([]);
   });
 
   it('repairs saves that refer to content that no longer exists', () => {

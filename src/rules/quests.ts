@@ -1,5 +1,6 @@
 import { content } from '../content/registry';
 import { MAX_INVENTORY, addXp, isAlive } from './character';
+import { specialKey } from './dungeon';
 import type { GameState } from './state';
 import type { Character, CityStage, QuestDef, QuestGoal, Reward } from './types';
 
@@ -217,13 +218,67 @@ export function useUpKey(s: GameState, keyId: string | undefined): string | null
 
 // ---- Rewards, feathers and the city ------------------------------------------------
 
-/** Gives an item to the first living hero with room, or says it was left behind. */
-export function giveItem(s: GameState, itemId: string): string {
-  const item = content.item(itemId);
-  const carrier = party(s).find((c) => isAlive(c) && c.inventory.length < MAX_INVENTORY);
-  if (!carrier) return `Everyone's pack is full, so the ${item.name} is left behind.`;
-  carrier.inventory.push(itemId);
-  return `${carrier.name} takes the ${item.name}.`;
+/**
+ * Gives an item to the first living hero with room. What must not be lost (story items, and
+ * rewards: `keep`) never is: if every pack is full, the emptiest takes it anyway, over the limit
+ * until room is made. Anything else (a bounty drop, say) is left behind.
+ */
+export function giveItem(s: GameState, itemId: string, keep = !!content.item(itemId).quest): string {
+  const name = theItem(content.item(itemId).name);
+  const living = party(s).filter(isAlive);
+  const carrier = living.find((c) => c.inventory.length < MAX_INVENTORY);
+  if (carrier) {
+    carrier.inventory.push(itemId);
+    return `${carrier.name} takes ${name}.`;
+  }
+  const crammer = keep ? [...(living.length ? living : party(s))].sort((a, z) => a.inventory.length - z.inventory.length)[0] : undefined;
+  if (!crammer) return `Everyone's pack is full, so ${name} is left behind.`;
+  crammer.inventory.push(itemId);
+  return `Everyone's pack is full, so ${crammer.name} crams ${name} in on top. Make some room soon!`;
+}
+
+/** Whether the party still has a use for a story item: a way it opens that isn't open, or a quest collecting it. */
+function stillNeeded(s: GameState, itemId: string): boolean {
+  for (const d of content.dungeons.values()) {
+    for (let l = 0; l < d.levels.length; l++) {
+      const level = d.levels[l];
+      for (let y = 0; y < level.grid.length; y++) {
+        for (let x = 0; x < level.grid[y].length; x++) {
+          const sp = level.specials[level.grid[y][x]];
+          if (!sp || !('key' in sp) || sp.key !== itemId) continue;
+          if (sp.kind === 'lock' ? !s.flags[specialKey(d.id, l, x, y)] : !(sp.flag && s.story[sp.flag])) return true;
+        }
+      }
+    }
+  }
+  return activeQuests(s).some((q) => q.steps.some((st) => st.goal.kind === 'collect' && st.goal.item === itemId));
+}
+
+/**
+ * Story items a save has lost (a full pack once left them behind): any the party has earned (from a
+ * chest it opened or a fight it won), still has a use for, and no longer carries, turn up again.
+ */
+export function recoverStoryItems(s: GameState): string[] {
+  const earned = new Map<string, number>();
+  for (const d of content.dungeons.values()) {
+    d.levels.forEach((level, l) =>
+      level.grid.forEach((row, y) =>
+        [...row].forEach((t, x) => {
+          const sp = level.specials[t];
+          if (!sp || !s.flags[specialKey(d.id, l, x, y)]) return;
+          const item = sp.kind === 'treasure' ? sp.item : sp.kind === 'fight' ? sp.reward?.item : undefined;
+          if (item && content.items.get(item)?.quest) earned.set(item, (earned.get(item) ?? 0) + 1);
+        }),
+      ),
+    );
+  }
+  const out: string[] = [];
+  for (const [itemId, count] of earned) {
+    const held = s.roster.reduce((n, c) => n + c.inventory.filter((i) => i === itemId).length, 0);
+    if (held >= count || !stillNeeded(s, itemId)) continue;
+    for (let i = held; i < count; i++) out.push(`Lost and found: ${giveItem(s, itemId, true)}`);
+  }
+  return out;
 }
 
 export function giveReward(s: GameState, r: Reward | undefined): string[] {
@@ -233,7 +288,7 @@ export function giveReward(s: GameState, r: Reward | undefined): string[] {
     s.gold += r.gold;
     out.push(`+${r.gold} gold.`);
   }
-  if (r.item) out.push(giveItem(s, r.item));
+  if (r.item) out.push(giveItem(s, r.item, true));
   if (r.xp) {
     const living = party(s).filter(isAlive);
     const share = Math.max(1, Math.floor(r.xp / Math.max(1, living.length)));
