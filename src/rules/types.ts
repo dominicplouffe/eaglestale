@@ -205,6 +205,8 @@ export type Special =
       flag?: string;
       /** How they look, standing there. */
       look?: Look;
+      /** `text` and `after` describe the scene rather than being said (a cat, say), so aren't quoted. */
+      narrated?: boolean;
     }
   | {
       /**

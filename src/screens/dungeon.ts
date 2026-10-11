@@ -568,16 +568,18 @@ class DungeonView {
         return this.usePortal(special);
       case 'building':
         return;
-      case 'talk':
+      case 'talk': {
+        const line = (text: string): string => (special.narrated ? text : `${special.name}: "${text}"`);
         if (done) {
-          game.say(`${special.name}: "${special.after}"`, 'story');
+          game.say(line(special.after), 'story');
           return;
         }
         game.state.flags[flag] = true;
-        game.say(`${special.name}: "${special.text}"`, 'story');
+        game.say(line(special.text), 'story');
         if (special.quest) this.say(startQuest(game.state, special.quest));
         this.story(special.flag);
         return;
+      }
       case 'lock':
       case 'secret':
         return;

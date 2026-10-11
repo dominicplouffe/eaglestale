@@ -145,7 +145,7 @@ export const talonreach: DungeonDef = {
         p: {
           kind: 'talk',
           name: 'Mother Plover',
-          text: 'Oh, heroes! My Sir Pounce chased a rat down the sewer grate on Drain Street and never came back. If you ever go down into the Gurgle, please look for him. He answers to "Sir Pounce" and to the sound of a tin being opened.',
+          text: "Oh, heroes! My Sir Pounce chased a rat down the sewer grate on Drain Street and never came back. If you ever go down into the Gurgle, please look for him. He answers to 'Sir Pounce' and to the sound of a tin being opened.",
           after: 'Any sign of Sir Pounce? He\'s ginger, round and very judgemental.',
           quest: 'sq-pounce',
           look: townsfolk({ cloth: '#6a5a9a', hair: '#cfcac0' }),
@@ -162,7 +162,7 @@ export const talonreach: DungeonDef = {
           kind: 'talk',
           name: 'Old Coo the pigeon keeper',
           text: 'The pigeons left when the eagle did. Silly birds. Bring a few feathers home to the tower and I reckon they\'ll come back too.',
-          after: 'Coo, coo. That\'s pigeon for "hurry up".',
+          after: "Coo, coo. That's pigeon for 'hurry up'.",
           look: townsfolk({ cloth: '#5a7a4a', hair: '#9a9a9a' }),
         },
         m: {

@@ -123,17 +123,17 @@ export const gurgle: DungeonDef = {
         i: { kind: 'message', text: 'A shrine of rat skulls and bottle caps. Scratched above it: ALL HAIL THE KING UNDER THE CITY.' },
         L: {
           kind: 'lock',
-          text: 'A huge sluice gate, scored with claw marks. It is shut fast; somewhere there must be a wheel that lifts it.',
+          text: 'A huge sluice gate, scored with claw marks. Somewhere there must be a wheel that lifts it.',
           opened: 'The great wheel has raised the sluice gate. You duck underneath, into the deepest drain.',
           flag: WHEEL,
         },
         M: {
           kind: 'lock',
-          text: 'A rusted sluice gate. Behind it, someone bangs on the bars and shouts for help. It won\'t lift from this side.',
+          text: 'A rusted sluice gate. Behind it, someone bangs on the bars and shouts for help.',
           opened: 'The sluice gate has been raised by the great wheel.',
           flag: WHEEL,
         },
-        x: sewerman('Dob the sewerman', 1, 'You turned the wheel! I\'ve been in here for days. I wrote a sign. Did you see my sign? I spelt "trapped" wrong.'),
+        x: sewerman('Dob the sewerman', 1, "You turned the wheel! I've been in here for days. I wrote a sign. Did you see my sign? I spelt 'trapped' wrong."),
         y: sewerman('Nettle the sewerwoman', 2, 'Took you long enough! The rats locked us in, the cheeky things. Tell Grubb I want a raise.'),
         z: sewerman('Big Alf', 3, 'Oh, thank goodness. I was just about to start eating my boots, and they were my good boots.'),
         J: {
@@ -184,7 +184,8 @@ export const gurgle: DungeonDef = {
           kind: 'talk',
           name: 'The Pipe Organist',
           text: 'A wild-haired man sits at an organ made of drainpipes. "The rats stole my music! I\'ve played from memory for a year and my memory is TERRIBLE. Find my Toccata, would you?"',
-          after: 'Any luck finding my music? It\'s called "Toccata for Drainpipes". You\'d know it if you heard it. Everyone does, eventually.',
+          after: 'The Pipe Organist plays on. "Any luck finding my music? It\'s called Toccata for Drainpipes. You\'d know it if you heard it. Everyone does, eventually."',
+          narrated: true,
           quest: 'sq-organist',
           look: { art: 'townsfolk', palette: { cloth: '#3a3a5a', hair: '#e8e8e8' } },
         },
@@ -195,6 +196,7 @@ export const gurgle: DungeonDef = {
           text: '"Mrrrow." A large ginger cat sits on a dry ledge beside an impressive pile of rat tails. He looks at you as if YOU are the ones who got lost.',
           after: 'Sir Pounce is washing a paw. He will go home when he is good and ready.',
           flag: 'pounce-found',
+          narrated: true,
           look: { art: 'cat' },
         },
         Q: {
