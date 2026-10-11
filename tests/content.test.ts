@@ -73,8 +73,15 @@ describe('content integrity', () => {
             const id = s.kind === 'treasure' ? s.item : s.reward?.item;
             expect(content.items.has(id as string)).toBe(true);
           }
-          if (s.kind === 'portal') expect(content.dungeons.has(s.dungeon), `portal to ${s.dungeon}`).toBe(true);
-          if ((s.kind === 'portal' || s.kind === 'lock') && s.key) expect(content.items.has(s.key), `key ${s.key}`).toBe(true);
+          if (s.kind === 'portal' || (s.kind === 'building' && s.dungeon)) {
+            expect(content.dungeons.has(s.dungeon as string), `way into ${s.dungeon}`).toBe(true);
+          }
+          if ((s.kind === 'portal' || s.kind === 'lock' || s.kind === 'building') && s.key) expect(content.items.has(s.key), `key ${s.key}`).toBe(true);
+          if (s.kind === 'teleport') {
+            const target = dungeon.levels[s.level ?? li];
+            expect(target, `teleport to level ${s.level}`).toBeDefined();
+            expect(target.grid.some((row) => row.includes(s.to)), `teleport to ${s.to}`).toBe(true);
+          }
           if (s.kind === 'talk' && s.quest) expect(content.quests.has(s.quest), `talk starts ${s.quest}`).toBe(true);
         }
         for (const a of [...(level.areas ?? []), ...(level.landmarks ?? [])]) {
@@ -88,10 +95,11 @@ describe('content integrity', () => {
     const cities = [...content.dungeons.values()].filter((d) => d.city);
     expect(cities).toHaveLength(1);
     const city = cities[0].levels[0];
-    const portals = Object.values(city.specials).filter((s) => s.kind === 'portal');
+    // Steps and grates (portals), or front doors that lead into a dungeon (a tower, say).
+    const ways = Object.values(city.specials).filter((s) => s.kind === 'portal' || (s.kind === 'building' && s.dungeon));
     for (const d of content.dungeons.values()) {
       if (d.city) continue;
-      expect(portals.some((p) => p.kind === 'portal' && p.dungeon === d.id), `a way down into ${d.id}`).toBe(true);
+      expect(ways.some((w) => (w.kind === 'portal' || w.kind === 'building') && w.dungeon === d.id), `a way into ${d.id}`).toBe(true);
     }
     // Building doors sit in walls, with a street square in front of them.
     city.grid.forEach((row, y) => {

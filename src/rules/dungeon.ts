@@ -32,8 +32,8 @@ export const levelKey = (dungeon: string, level: number): string => `${dungeon}:
 
 /**
  * How a square looks and behaves right now: a lock is a shut door '=' until opened (then a doorway),
- * a secret is wall '#' until found (then floor), a building is its front door '&' and a portal looks
- * like stairs down. `done` says whether a special has been used.
+ * a secret is wall '#' until found (then floor), a building is its front door '&', a portal looks
+ * like stairs down and a teleport '^' like the mouth of a tube. `done` says whether a special has been used.
  */
 export function effectiveTile(level: DungeonLevel, x: number, y: number, done: (x: number, y: number) => boolean): string {
   const t = tileAt(level, x, y);
@@ -42,6 +42,7 @@ export function effectiveTile(level: DungeonLevel, x: number, y: number, done: (
   if (s?.kind === 'secret') return done(x, y) ? '.' : '#';
   if (s?.kind === 'building') return '&';
   if (s?.kind === 'portal') return '>';
+  if (s?.kind === 'teleport') return '^';
   return t;
 }
 

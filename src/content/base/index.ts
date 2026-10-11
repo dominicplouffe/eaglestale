@@ -4,6 +4,7 @@ import { talonreach } from './city';
 import { classes } from './classes';
 import { dungeons } from './dungeons';
 import { gurgle } from './gurgle';
+import { clocktower } from './clocktower';
 import { items } from './items';
 import { monsters } from './monsters';
 import { races } from './races';
@@ -18,7 +19,7 @@ export const basePack: ContentPack = {
   items,
   spells,
   monsters,
-  dungeons: [talonreach, ...dungeons, gurgle],
+  dungeons: [talonreach, ...dungeons, gurgle, clocktower],
   shops,
   quests,
   feathers,

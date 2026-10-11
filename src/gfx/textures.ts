@@ -9,6 +9,11 @@ import type { DungeonTheme, Landmark, PlaceId } from '../rules/types';
 
 export const TEX = 32;
 export const LIGHT_LEVELS = 20;
+/**
+ * Wall faces are drawn about this many times wider than they are tall, so anything meant to look round
+ * on a wall (a gear, a dial) is painted this much narrower.
+ */
+const WALL_ASPECT = 1.7;
 
 export interface Texture {
   /** One TEX*TEX array of packed pixels per light level (0 = darkest). Alpha 0 means see-through. */
@@ -37,6 +42,8 @@ export interface ThemeTextures {
   stairsUpFloor: Texture;
   /** The lit hatch overhead where stairs lead up. */
   hatch: Texture;
+  /** The brass mouth of a tube (a teleport square). */
+  pad: Texture;
   /** A building's front door, with a hanging sign for the places in town. */
   buildingDoor: Texture;
   signs: Partial<Record<PlaceId, Texture>>;
@@ -273,6 +280,19 @@ function hatch(ceiling: Paint): Paint {
   return p;
 }
 
+/** A round brass hatch with a glowing ring: the mouth of a pneumatic tube. */
+function tubeMouth(floor: Paint): Paint {
+  const p = floor.copy();
+  for (let y = 0; y < TEX; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const d = Math.hypot(x - 15.5, y - 15.5);
+      if (d < 13) p.set(x, y, d > 11 ? [196, 150, 70] : d > 9.5 ? [120, 220, 255] : d < 2 ? [60, 50, 40] : [70, 60, 50], d > 9.5 && d <= 11);
+      if (d >= 2 && d < 9.5 && (Math.round(Math.atan2(y - 15.5, x - 15.5) * 3) % 2 === 0)) p.set(x, y, [90, 76, 60]);
+    }
+  }
+  return p;
+}
+
 function lightPool(floor: Paint): Paint {
   const p = floor.copy();
   for (let y = 0; y < TEX; y++) {
@@ -498,17 +518,17 @@ function clockFace(base: Paint, frame: number): Paint {
   const p = base.copy();
   for (let y = 0; y < TEX; y++) {
     for (let x = 0; x < TEX; x++) {
-      const d = Math.hypot(x - 15.5, y - 15.5);
+      const d = Math.hypot((x - 15.5) * WALL_ASPECT, y - 15.5);
       if (d < 13.5) p.set(x, y, d > 12.2 ? [176, 140, 64] : [236, 228, 204]);
     }
   }
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
-    p.set(Math.round(15.5 + Math.sin(a) * 10.5), Math.round(15.5 - Math.cos(a) * 10.5), [40, 34, 40]);
+    p.set(Math.round(15.5 + (Math.sin(a) * 10.5) / WALL_ASPECT), Math.round(15.5 - Math.cos(a) * 10.5), [40, 34, 40]);
   }
   // The hands, which (being Professor Pinion's) disagree about the time.
   const hand = (a: number, len: number): void => {
-    for (let r = 0; r < len; r += 0.5) p.set(Math.round(15.5 + Math.sin(a) * r), Math.round(15.5 - Math.cos(a) * r), [30, 26, 34]);
+    for (let r = 0; r < len; r += 0.5) p.set(Math.round(15.5 + (Math.sin(a) * r) / WALL_ASPECT), Math.round(15.5 - Math.cos(a) * r), [30, 26, 34]);
   };
   hand(frame ? 1.9 : 2.0, 6);
   hand(frame ? 5.3 : 5.25, 9);
@@ -569,6 +589,91 @@ function landmarkTextures(rng: Rng, doorWood: RGB): Record<Landmark['look'], { a
   };
 }
 
+
+/** Riveted brass plates over a dark wooden wainscot, with a polished rail between. */
+function clockworkWall(p: Paint, rng: Rng, brass: RGB, wood: RGB): void {
+  for (let y = 0; y < 20; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const seam = x % 16 === 0 || y === 0 || y === 10;
+      const sheen = 1 + 0.18 * Math.sin((x + y * 0.6) / 5);
+      p.set(x, y, seam ? mul(brass, 0.55) : mul(brass, (0.82 + rng.next() * 0.08) * sheen));
+    }
+  }
+  for (let x = 3; x < TEX; x += 16) for (const y of [2, 8, 12, 18]) {
+    p.set(x, y, mul(brass, 1.35));
+    p.set(x + 10, y, mul(brass, 1.35));
+  }
+  p.rect(0, 20, TEX, 2, (x) => mul(brass, 1.25 - (x % 8) * 0.02));
+  p.rect(0, 22, TEX, 1, mul(brass, 0.5));
+  for (let x = 0; x < TEX; x++) {
+    for (let y = 23; y < TEX; y++) {
+      const edge = x % 8 === 0 || x % 8 === 7;
+      p.set(x, y, mul(wood, edge ? 0.6 : 0.85 + ((x * 7 + y) % 5) * 0.04));
+    }
+  }
+  speckle(p, rng, 30, () => 0.9 + rng.next() * 0.15);
+}
+
+/** A great gear turning on the wall (the second frame is a few degrees on). */
+function wallGear(base: Paint, frame: number, brass: RGB): Paint {
+  const p = base.copy();
+  const turn = frame * (Math.PI / 16);
+  for (let y = 0; y < 22; y++) {
+    for (let x = 4; x < 28; x++) {
+      const dx = (x - 15.5) * WALL_ASPECT;
+      const dy = y - 10.5;
+      const r = Math.hypot(dx, dy);
+      const a = Math.atan2(dy, dx) + turn;
+      const tooth = Math.cos(a * 8) > 0.2 ? 10.5 : 8.5;
+      if (r > tooth) continue;
+      if (r < 2) p.set(x, y, [40, 32, 28]);
+      else if (r < 4) p.set(x, y, mul(brass, 1.3));
+      else if (r < 7 && Math.cos(a * 4) > 0.55) p.set(x, y, [30, 24, 22]); // spokes' gaps
+      else p.set(x, y, mul(brass, 0.95 + (dy < 0 ? 0.2 : -0.1) + (r > tooth - 1 ? -0.25 : 0)));
+    }
+  }
+  return p;
+}
+
+/** Herringbone parquet. */
+function parquet(p: Paint, rng: Rng, wood: RGB): void {
+  for (let y = 0; y < TEX; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const band = Math.floor((x + y) / 4) % 2;
+      const block = Math.floor((band ? x - y + 64 : x + y) / 8);
+      const edge = (band ? (x - y + 64) : (x + y)) % 8 === 0;
+      p.set(x, y, edge ? mul(wood, 0.55) : mul(wood, 0.85 + (block % 3) * 0.08 + rng.next() * 0.04));
+    }
+  }
+}
+
+/** Beams and a copper pipe overhead. */
+function pipeCeiling(p: Paint, wood: RGB): void {
+  p.rect(0, 0, TEX, TEX, mul(wood, 0.55));
+  p.rect(0, 0, TEX, 5, (x) => mul(wood, 0.9 + (x % 6 === 0 ? -0.2 : 0)));
+  p.rect(0, 0, 5, TEX, (_x, y) => mul(wood, 0.85 + (y % 6 === 0 ? -0.2 : 0)));
+  p.rect(5, 17, TEX - 5, 3, (_x, y) => mul([150, 90, 60], y === 17 ? 1.2 : y === 19 ? 0.6 : 0.9));
+  p.rect(18, 16, 2, 5, [90, 70, 50]);
+}
+
+/** A round brass vault door with a dial: the Professor's idea of a lock. */
+function vaultDoor(wall: Paint, brass: RGB): Paint {
+  const p = wall.copy();
+  for (let y = 0; y < TEX; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const r = Math.hypot((x - 15.5) * WALL_ASPECT, y - 17);
+      if (r < 14) p.set(x, y, r > 12.5 ? mul(brass, 0.5) : r < 4 ? mul(brass, 1.3) : mul(brass, 0.85 + (y < 17 ? 0.15 : 0)));
+      if (r >= 4 && r < 4.8) p.set(x, y, [40, 32, 28]);
+    }
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    p.set(Math.round(15.5 + (Math.cos(a) * 10) / WALL_ASPECT), Math.round(17 + Math.sin(a) * 10), mul(brass, 1.4));
+  }
+  p.rect(15, 13, 1, 4, [40, 32, 28]);
+  return p;
+}
+
 function build(theme: DungeonTheme): ThemeTextures {
   const style = theme.style ?? 'brick';
   const rng = new Rng(theme.wall.length * 7919 + parseInt(theme.wall.slice(1), 16));
@@ -581,7 +686,11 @@ function build(theme: DungeonTheme): ThemeTextures {
   let floorAlt: Paint | null = null;
   const ceiling = new Paint();
 
-  if (style === 'city') {
+  if (style === 'clockwork') {
+    clockworkWall(wall, rng, wallC, parse(theme.door));
+    parquet(floor, rng, floorC);
+    pipeCeiling(ceiling, ceilC);
+  } else if (style === 'city') {
     timbered(wall, rng, wallC);
     cobbles(floor, rng, floorC);
     ceiling.rect(0, 0, TEX, TEX, ceilC);
@@ -644,6 +753,7 @@ function build(theme: DungeonTheme): ThemeTextures {
     style === 'rune' ? [rune(wall, 0, [220, 120, 255]), rune(wall, 1, [220, 120, 255])]
     : style === 'city' ? [cityWindow(wall, 0, shutter), cityWindow(wall, 1, shutter)]
     : style === 'sewer' ? [pipe(wall, 0), pipe(wall, 1)]
+    : style === 'clockwork' ? [wallGear(wall, 0, wallC), wallGear(wall, 1, wallC)]
     : [sconce(wall, 0), sconce(wall, 1)];
   const upper = style === 'city' ? [upperStorey(wall, rng, true, shutter), upperStorey(wall, rng, false, shutter)] : [];
   const signPaint: Partial<Record<PlaceId, Paint>> = {};
@@ -658,17 +768,18 @@ function build(theme: DungeonTheme): ThemeTextures {
   return {
     wall: wall.bake(),
     feature: [feature[0].bake(), feature[1].bake()],
-    featureEvery: style === 'city' ? 2 : 7,
+    featureEvery: style === 'city' ? 2 : style === 'clockwork' ? 4 : 7,
     storeys: style === 'city' ? 2 : 1,
     upper: upper.map((u) => u.bake()),
     floor: floor.bake(),
     floorAlt: (floorAlt ?? floor).bake(),
     ceiling: ceiling.bake(),
     door: doorway(wall, parse(theme.door)).bake(),
-    doorShut: (style === 'sewer' ? sluiceGate(wall) : shutDoor(wall, parse(theme.door))).bake(),
+    doorShut: (style === 'sewer' ? sluiceGate(wall) : style === 'clockwork' ? vaultDoor(wall, wallC) : shutDoor(wall, parse(theme.door))).bake(),
     stairsDown: stairsDown(floor, rng).bake(),
     stairsUpFloor: lightPool(floor).bake(),
     hatch: hatch(ceiling).bake(),
+    pad: tubeMouth(floor).bake(),
     buildingDoor: buildingDoor(wall, parse(theme.door)).bake(),
     signs,
     landmarks,

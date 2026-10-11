@@ -130,6 +130,8 @@ export interface DungeonViewState {
   sprites?: ViewSprite[];
   /** Outdoors: the sky's colour at the horizon (overrides the theme's, e.g. as the city recovers). */
   sky?: string;
+  /** In a tower the '>' stairs climb (a lit hatch overhead) and '<' goes down (a hole in the floor). */
+  ascending?: boolean;
 }
 
 let image: ImageData | null = null;
@@ -301,8 +303,10 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
       const tile = at(cellX, cellY);
       const ti = Math.floor((wy - cellY) * TEX) * TEX + Math.floor((wx - cellX) * TEX);
       const plain = (cellX + cellY) & 1 ? tex.floorAlt : tex.floor;
-      const floorTex = tile === '>' ? tex.stairsDown : tile === '<' ? tex.stairsUpFloor : plain;
-      const ceilTex = tile === '<' ? tex.hatch : tex.ceiling;
+      const up = v.ascending ? '>' : '<';
+      const down = v.ascending ? '<' : '>';
+      const floorTex = tile === down ? tex.stairsDown : tile === up ? tex.stairsUpFloor : tile === '^' ? tex.pad : plain;
+      const ceilTex = tile === up ? tex.hatch : tex.ceiling;
       buf[y * VIEW_W + x] = floorTex.levels[levelFor(light * 0.92, x, y)][ti];
       if (!sky) buf[cy * VIEW_W + x] = ceilTex.levels[levelFor(light * 0.8, x, cy)][ti];
     }

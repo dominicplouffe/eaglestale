@@ -12,7 +12,7 @@ import {
   useItemOn,
   xpToNext,
 } from '../rules/character';
-import { castCampSpell, isCampSpell } from '../rules/spells';
+import { campSpellNeedsTarget, castCampSpell, isCampSpell } from '../rules/spells';
 import { SLOTS, type Character } from '../rules/types';
 import { statBlock } from './inspect';
 
@@ -228,6 +228,11 @@ export function openCharSheet(game: Game, opts: SheetOptions): void {
               text: 'Cast',
               disabled: c.sp < s.cost || !isAlive(c),
               onclick: () => {
+                if (!campSpellNeedsTarget(s)) {
+                  game.audio.sfx('heal');
+                  game.say(castCampSpell(c, s.id, c, undefined, game.party), 'good');
+                  return done();
+                }
                 picking = { kind: 'cast', ownerId: c.id, spellId: s.id };
                 redraw();
               },

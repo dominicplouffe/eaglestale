@@ -105,8 +105,13 @@ export const talonreach: DungeonDef = {
         },
         C: {
           kind: 'building',
-          name: "Professor Pinion's Clocktower",
+          name: 'The Clocktower',
+          dungeon: 'clocktower',
+          key: 'pinionletter',
+          flag: 'clocktower-entered',
           text: "Professor Pinion's Clocktower. A sign on the door says BACK IN FIVE MINUTES. It is dated last spring, and something inside is ticking far too loudly.",
+          opened: 'You push Professor Pinion\'s letter through the brass slot. Gears whirr, bolts slide back, and a voice squawks from a speaking-tube: "Feathers? Come in, come in!"',
+          hotkey: 'k',
         },
         X: {
           kind: 'building',

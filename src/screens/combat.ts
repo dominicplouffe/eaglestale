@@ -552,6 +552,14 @@ class CombatScreen implements Screen {
     this.game.shell.setMenu(items, 'Target which group?');
   }
 
+  /** For spells that bring heroes back: only the fallen are offered. */
+  private pickFallen(c: Character, done: (allyId: string) => void): void {
+    const fallen = this.battle.party.filter((a) => !isAlive(a));
+    const items: MenuItem[] = fallen.map((a, n) => ({ key: String(n + 1), label: a.name, action: () => done(a.id) }));
+    items.push(this.backItem(c));
+    this.game.shell.setMenu(items, fallen.length ? 'Bring back whom?' : 'Nobody has fallen.');
+  }
+
   private pickAlly(c: Character, done: (allyId: string) => void): void {
     const items: MenuItem[] = this.battle.party.filter(isAlive).map((a, n) => ({
       key: String(n + 1),
@@ -563,14 +571,17 @@ class CombatScreen implements Screen {
   }
 
   private spellMenu(c: Character, spells: SpellDef[]): void {
+    // Keys 1-9, then 0, then letters (B is Back).
+    const keys = [...'1234567890acdefghijklmnopqrstuvwxyz'];
     const items: MenuItem[] = spells.map((s, n) => ({
-      key: String(n + 1),
-      label: `${s.name} (${s.cost} SP) - ${s.desc}`,
+      key: keys[n],
+      label: `${s.name} (${s.cost})`,
+      hint: s.desc,
       disabled: !canCast(c, s),
       action: () => this.aimSpell(c, s),
     }));
     items.push(this.backItem(c));
-    this.game.shell.setMenu(items, 'Cast which spell?');
+    this.game.shell.setMenu(items, 'Cast which spell? (SP cost)');
   }
 
   private aimSpell(c: Character, spell: SpellDef): void {
@@ -582,6 +593,8 @@ class CombatScreen implements Screen {
         return this.pickGroup(c, this.battle.liveGroupIndexes(), (group) => cast({ group }));
       case 'ally':
         return this.pickAlly(c, (ally) => cast({ ally }));
+      case 'fallen':
+        return this.pickFallen(c, (ally) => cast({ ally }));
       default:
         return cast({});
     }

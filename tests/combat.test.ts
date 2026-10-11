@@ -157,6 +157,76 @@ describe('camp spells', () => {
   });
 });
 
+describe('higher spells and machines', () => {
+  content.register({
+    id: 'combat-test',
+    monsters: [
+      { id: 'testcog', name: 'Test Cog', plural: 'Test Cogs', hp: [40, 1], def: 0, toHit: 0, speed: 1, xp: 1, gold: [0, 0], attacks: [{ verb: 'clanks at', dice: [1, 1] }], sprite: 'blob', construct: true },
+    ],
+  });
+  const caster = (classId: string, level: number): Character => {
+    const c = makeHero(classId, classId, 'human', `${classId}-${level}`);
+    c.level = level;
+    c.sp = 99;
+    return c;
+  };
+
+  it('machines never fall asleep', () => {
+    const mage = caster('mage', 5);
+    const b = new Battle([mage], [{ monster: 'testcog', count: 4 }], new Rng(3));
+    const events = b.resolveRound(new Map([[mage.id, { kind: 'cast', spell: 'snooze', group: 0 }]]));
+    expect(b.groups[0].members.every((m) => m.asleep === 0)).toBe(true);
+    expect(events.map((e) => e.text)).toContain("Machines don't sleep.");
+  });
+
+  it('rust hits machines twice as hard', () => {
+    const mage = caster('mage', 5);
+    const b = new Battle([mage], [{ monster: 'testcog', count: 1 }], new Rng(4));
+    const events = b.resolveRound(new Map([[mage.id, { kind: 'cast', spell: 'rustbolt', group: 0 }]]));
+    const hit = events.find((e) => e.text.includes('(it rusts!)'));
+    expect(hit).toBeDefined();
+    const amount = Number(/takes (\d+)/.exec(hit?.text ?? '')?.[1]);
+    expect(amount % 2).toBe(0);
+    expect(40 - b.groups[0].members[0].hp).toBe(amount);
+  });
+
+  it('a party heal mends every living hero', () => {
+    const healer = caster('healer', 8);
+    const a = makeHero('knight', 'A', 'human', 'a');
+    const z = makeHero('rogue', 'Z', 'human', 'z');
+    a.hp = 1;
+    z.hp = 1;
+    const b = new Battle([a, z, healer], [{ monster: 'testcog', count: 1 }], new Rng(5));
+    b.resolveRound(new Map([[healer.id, { kind: 'cast', spell: 'massmend' }]]));
+    expect(a.hp).toBeGreaterThan(1);
+    expect(z.hp).toBeGreaterThan(1);
+  });
+
+  it('revive brings back the fallen, in battle and at camp', () => {
+    const healer = caster('healer', 10);
+    const a = makeHero('knight', 'A', 'human', 'a');
+    a.hp = 0;
+    const b = new Battle([a, healer], [{ monster: 'testcog', count: 1 }], new Rng(6));
+    b.resolveRound(new Map([[healer.id, { kind: 'cast', spell: 'revive', ally: a.id }]]));
+    expect(a.hp).toBe(Math.max(1, Math.floor(a.maxHp / 4)));
+
+    const z = makeHero('rogue', 'Z', 'human', 'z');
+    z.hp = 0;
+    expect(castCampSpell(healer, 'revive', z)).toMatch(/back on their feet/);
+    expect(z.hp).toBeGreaterThan(0);
+    expect(castCampSpell(healer, 'revive', z)).toMatch(/alive and well/);
+  });
+
+  it('every class learns its spells by level 12, and all of them exist', () => {
+    for (const cls of content.classes.values()) {
+      for (const entry of cls.spellbook) {
+        expect(content.spells.has(entry.spell), `${cls.id} ${entry.spell}`).toBe(true);
+        expect(entry.level).toBeLessThanOrEqual(12);
+      }
+    }
+  });
+});
+
 describe('battle distance', () => {
   it('random encounters mostly start within reach', () => {
     const rng = new Rng(11);

@@ -1,6 +1,7 @@
 import { MONSTER_ART } from './art/monsters';
 import { PEOPLE_ART } from './art/people';
 import { SEWER_ART } from './art/sewer';
+import { CLOCKWORK_ART } from './art/clockwork';
 import { mixRGB, parseHex, ramp, toHex } from './colors';
 
 /**
@@ -32,6 +33,7 @@ export function registerArt(defs: Record<string, ArtDef>): void {
 registerArt(MONSTER_ART);
 registerArt(PEOPLE_ART);
 registerArt(SEWER_ART);
+registerArt(CLOCKWORK_ART);
 
 export const hasArt = (name: string): boolean => registry.has(name);
 export const artDef = (name: string): ArtDef | undefined => registry.get(name);

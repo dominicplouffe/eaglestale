@@ -190,3 +190,37 @@ test('walk the town: shops, the sewer grate, and down into the Gurgle and back',
   await page.keyboard.press('y');
   await expect(page.locator('#location')).toHaveText('Talonreach - Drain Street');
 });
+
+test("the Clocktower opens to Pinion's letter, and its stairs lead back down to the street", async ({ page }) => {
+  await startWithParty(page);
+  const go = (dungeon: string, level: number, x: number, y: number, dir: number) =>
+    page.evaluate(
+      async ([dungeon, level, x, y, dir]) => {
+        const path = '/src/screens/dungeon.ts';
+        const { dungeonScreen } = await import(/* @vite-ignore */ path);
+        const game = (window as unknown as { __game: { state: { location: unknown }; go(s: unknown): void } }).__game;
+        game.state.location = { dungeon, level, x, y, dir };
+        game.go(dungeonScreen);
+      },
+      [dungeon, level, x, y, dir] as const,
+    );
+  // At the end of Clock Lane, facing the Clocktower's door.
+  await go('talonreach', 0, 28, 3, 1);
+  await page.keyboard.press('ArrowUp');
+  await expect(log(page).last()).toHaveText(/You need Professor Pinion's Letter/);
+  await page.evaluate(() => {
+    const game = (window as unknown as { __game: { party: { inventory: string[] }[] } }).__game;
+    game.party[0].inventory.push('pinionletter');
+  });
+  await page.keyboard.press('ArrowUp');
+  await expect(menuTitle(page)).toHaveText("Go into Pinion's Clocktower?");
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText("Pinion's Clocktower - The Workshop (level 1)");
+  await expect(log(page).last()).toHaveText(/leaves Professor Pinion's Letter behind/);
+
+  // The stairs out of a tower lead down to the street.
+  await page.keyboard.press('e');
+  await expect(menuTitle(page)).toHaveText('Go back down to the street?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText('Talonreach - Clock Lane');
+});

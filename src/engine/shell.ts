@@ -4,6 +4,8 @@ export interface MenuItem {
   label: string;
   action: () => void;
   disabled?: boolean;
+  /** Shown when the pointer rests on it (e.g. what a spell does). */
+  hint?: string;
 }
 
 export type LogStyle = '' | 'good' | 'bad' | 'gold' | 'dim' | 'story';
@@ -112,6 +114,7 @@ export class Shell {
       const b = document.createElement('button');
       b.className = 'menu-item';
       b.disabled = !!item.disabled;
+      if (item.hint) b.title = item.hint;
       const k = document.createElement('kbd');
       k.textContent = item.key.toUpperCase();
       b.append(k, item.label);

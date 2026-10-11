@@ -52,6 +52,21 @@ export const items: ItemDef[] = [
   { id: 'eaglehelm', name: 'Eagle Helm', desc: 'A helm with a crest of bronze feathers.', price: 950, slot: 'head', proficiency: 'heavy', ac: 4 },
   { id: 'elixir', name: 'Golden Elixir', desc: 'Restores 80 HP. Tastes like sunshine and honey.', price: 240, use: { kind: 'heal', amount: 80 } },
   { id: 'greatertonic', name: 'Greater Spirit Tonic', desc: 'Restores 20 SP.', price: 260, use: { kind: 'restoreSp', amount: 20 } },
+  { id: 'clockblade', name: 'Clockwork Blade', desc: 'A sword with a ticking, spring-driven edge.', price: 2000, slot: 'weapon', proficiency: 'sword', damage: [2, 8, 2], hit: 2 },
+  { id: 'gearhammer', name: 'Gear Hammer', desc: 'A hammer with a gear for a head. Very persuasive.', price: 2000, slot: 'weapon', proficiency: 'mace', damage: [2, 8, 3], hit: 1 },
+  { id: 'springbow', name: 'Spring Bow', desc: 'A brass-limbed bow that winds itself between shots.', price: 1900, slot: 'weapon', proficiency: 'bow', damage: [2, 6, 4], hit: 2, ranged: true },
+  { id: 'cogshield', name: 'Cog Shield', desc: 'A round shield ringed with teeth.', price: 1100, slot: 'shield', proficiency: 'shield', ac: 4 },
+  { id: 'starrobe', name: 'Robe of Stars', desc: 'Embroidered with constellations. Stars are surprisingly hard to stab through.', price: 900, slot: 'body', proficiency: 'robe', ac: 3 },
+  { id: 'archstaff', name: 'Archmage Staff', desc: 'Topped with a crystal that hums when spells are near.', price: 1800, slot: 'weapon', proficiency: 'staff', damage: [2, 8, 3], hit: 2 },
+  { id: 'brigandine', name: 'Brigandine', desc: 'Steel plates riveted inside a leather coat.', price: 1600, slot: 'body', proficiency: 'medium', ac: 7 },
+  { id: 'eaglegauntlets', name: 'Eagle Gauntlets', desc: 'Steel gauntlets with talon-tipped fingers.', price: 800, slot: 'hands', proficiency: 'heavy', ac: 3 },
+  { id: 'silkcap', name: 'Silk-Lined Cap', desc: 'Spider silk inside, felt outside. Stops an arrow, they say.', price: 450, slot: 'head', proficiency: 'light', ac: 2 },
+  { id: 'wardcharm', name: 'Warding Charm', desc: "A feather of the Eagle Tower's keepers, sealed in crystal.", price: 2200, slot: 'trinket', ac: 4 },
+  { id: 'aquilaplate', name: 'Aquila Plate', desc: 'Golden plate made in the eagle\'s honour. Heavy with hope.', price: 4200, slot: 'body', proficiency: 'heavy', ac: 10 },
+  { id: 'aquilablade', name: 'Aquila Blade', desc: 'A sword like a gold feather. It wants to fly.', price: 3800, slot: 'weapon', proficiency: 'sword', damage: [3, 6, 4], hit: 3 },
+  { id: 'aquilabow', name: 'Aquila Bow', desc: 'Its arrows fly true, like a diving eagle.', price: 3600, slot: 'weapon', proficiency: 'bow', damage: [2, 8, 4], hit: 3, ranged: true },
+  { id: 'archrobe', name: 'Archmage Robe', desc: 'Woven with warding runes that glow when danger is near.', price: 2400, slot: 'body', proficiency: 'robe', ac: 5 },
+  { id: 'phoenixdraught', name: 'Phoenix Draught', desc: 'Restores 150 HP. Warm as sunrise.', price: 450, use: { kind: 'heal', amount: 150 } },
 
   // Bounty goods dropped by monsters (the Guild pays for these)
   { id: 'rattail', name: 'Rat Tail', desc: 'The Guild pays for these. Nobody asks why.', price: 2 },
@@ -59,6 +74,8 @@ export const items: ItemDef[] = [
   { id: 'spidersilk', name: 'Spider Silk', desc: 'A skein of strong, sticky thread.', price: 8 },
   { id: 'ratfang', name: 'Plague Rat Fang', desc: 'Yellow, chipped and faintly glowing. The Guild wants them counted.', price: 4 },
   { id: 'slimejar', name: 'Jar of Sludge', desc: 'For the alchemists. They say it is "promising". It is gurgling.', price: 6 },
+  { id: 'mainspring', name: 'Mainspring', desc: 'A tightly coiled spring from a tin soldier. Boing.', price: 8 },
+  { id: 'brassgear', name: 'Brass Gear', desc: 'A good brass gear. The brassworkers of Market Street will want it.', price: 10 },
 
   // Keys and story items (can't be sold or dropped)
   { id: 'cryptkey', name: 'Ossuary Key', desc: 'A bone-handled key carved with an eagle. Opens the Ossuary in the Crypts.', price: 0, quest: true },
@@ -66,6 +83,9 @@ export const items: ItemDef[] = [
   { id: 'wobblebyhelm', name: "Wobbleby's Helm", desc: 'An heirloom helmet. Fits anyone; slightly dented on one side.', price: 350, slot: 'head', ac: 3 },
   { id: 'gatorhide', name: "Snapjaw's Hide", desc: 'A great scaly hide. Tanner Hodge, on Tanner\'s Row, would know what to do with it.', price: 0, quest: true },
   { id: 'sheetmusic', name: 'Sheet Music', desc: '"Toccata for Drainpipes in G Minor". Soggy, but still legible.', price: 0, quest: true },
+  { id: 'brasskey', name: 'Storeroom Key', desc: "A brass key on an apprentice's lanyard. Opens the Workshop storeroom.", price: 0, quest: true },
+  { id: 'windingkey', name: "Tock's Winding Key", desc: 'A big silver key for winding up a clockwork butler.', price: 0, quest: true },
+  { id: 'notebook', name: "Pinion's Notebook", desc: 'Full of diagrams of eagles, and a list headed THINGS M. OWES ME.', price: 0, quest: true },
   { id: 'pinionletter', name: "Professor Pinion's Letter", desc: 'Clockwork-stamped paper: "Will buy feathers by the pound. No questions asked. - Prof. P., The Clocktower."', price: 0, quest: true },
 
   // Dungeon treasure (not sold in shops)
@@ -77,5 +97,11 @@ export const items: ItemDef[] = [
   { id: 'pipestaff', name: 'Organ-Pipe Staff', desc: 'A brass pipe that hums a low note. Spells come out louder.', price: 1200, slot: 'weapon', proficiency: 'staff', damage: [2, 6, 2], hit: 2 },
   { id: 'gatorarmor', name: 'Gator-Hide Armour', desc: 'Made by Tanner Hodge from Old Snapjaw. Tough, scaly, and it still smells a bit.', price: 1500, slot: 'body', proficiency: 'medium', ac: 7 },
   { id: 'ratcrown', name: "The Rat King's Crown", desc: 'A crown of bottle caps. Surprisingly protective, and nobody laughs at it twice.', price: 1400, slot: 'trinket', ac: 3 },
+  { id: 'pinionspanner', name: "The Professor's Spanner", desc: 'Adjustable, heavy, and covered in oil. Fixes most problems.', price: 2200, slot: 'weapon', proficiency: 'mace', damage: [2, 8, 4], hit: 2 },
+  { id: 'springcrossbow', name: "Hortensia's Crossbow", desc: 'A clockmaker\'s crossbow that cocks itself with a tick.', price: 2400, slot: 'weapon', proficiency: 'bow', damage: [2, 6, 5], hit: 3, ranged: true },
+  { id: 'cogwheelshield', name: 'Cogwheel Shield', desc: 'A shield made from the Grinder\'s spare gear.', price: 1800, slot: 'shield', proficiency: 'shield', ac: 5 },
+  { id: 'chronostaff', name: 'Staff of Hours', desc: 'Its crystal shows the time, and sometimes the future.', price: 2600, slot: 'weapon', proficiency: 'staff', damage: [2, 8, 4], hit: 3 },
+  { id: 'timepiece', name: "Pinion's Pocket Watch", desc: 'Always ten minutes fast, so you\'re never late for a fight.', price: 1600, slot: 'trinket', ac: 3 },
+  { id: 'pinionsgoggles', name: "Pinion's Goggles", desc: 'Spare goggles from Penny. Everything looks sharper (and slightly blue).', price: 1200, slot: 'head', ac: 3 },
   { id: 'catseye', name: "Cat's-Eye Charm", desc: 'From Mother Plover. Its green stone seems to watch your back.', price: 600, slot: 'trinket', ac: 2 },
 ];

@@ -274,6 +274,14 @@ export class Battle {
     c.sp -= spell.cost;
     const e = spell.effect;
 
+    if (e.kind === 'heal' && spell.target === 'party') {
+      events.push({ text: `${c.name} casts ${spell.name}!`, sfx: 'heal' });
+      for (const ally of this.party.filter(isAlive)) {
+        const healed = applyHeal(ally, rollSpellDice(c, spell, this.rng));
+        events.push({ text: `${ally.name} recovers ${healed} HP.`, fx: { kind: 'heal', hero: ally.id, amount: healed } });
+      }
+      return;
+    }
     if (e.kind === 'heal') {
       const ally = this.party.find((p) => p.id === order.ally && isAlive(p)) ?? c;
       const healed = applyHeal(ally, rollSpellDice(c, spell, this.rng));
@@ -281,6 +289,20 @@ export class Battle {
         text: `${c.name} casts ${spell.name}: ${ally.name} recovers ${healed} HP.`,
         sfx: 'heal',
         fx: { kind: 'heal', hero: ally.id, amount: healed },
+      });
+      return;
+    }
+    if (e.kind === 'revive') {
+      const fallen = this.party.find((p) => p.id === order.ally && !isAlive(p));
+      if (!fallen) {
+        events.push({ text: `${c.name} casts ${spell.name}, but nobody needs it.`, sfx: 'spell' });
+        return;
+      }
+      fallen.hp = Math.max(1, Math.floor(fallen.maxHp * e.share));
+      events.push({
+        text: `${c.name} casts ${spell.name}: ${fallen.name} is back on their feet!`,
+        sfx: 'heal',
+        fx: { kind: 'heal', hero: fallen.id, amount: fallen.hp },
       });
       return;
     }
@@ -305,20 +327,23 @@ export class Battle {
     events.push({ text: `${c.name} casts ${spell.name}!`, sfx: 'spell', fx: { kind: 'cast', spell: spell.id, groups: struck } });
     if (e.kind === 'sleep') {
       let slept = 0;
-      for (const { member } of targets) {
-        if (this.rng.chance(SLEEP_SUCCESS)) {
+      const machines = targets.filter(({ group }) => group.def.construct).length;
+      for (const { group, member } of targets) {
+        // Machines don't sleep.
+        if (!group.def.construct && this.rng.chance(SLEEP_SUCCESS)) {
           member.asleep = e.turns;
           slept += 1;
         }
       }
       const dozed = slept === 1 ? '1 enemy dozes off.' : `${slept} enemies doze off.`;
-      events.push({ text: slept > 0 ? dozed : 'Nobody is sleepy.' });
+      events.push({ text: slept > 0 ? dozed : machines === targets.length ? 'Machines don\'t sleep.' : 'Nobody is sleepy.' });
       return;
     }
     for (const { group, member } of targets) {
-      const damage = Math.max(1, rollSpellDice(c, spell, this.rng));
+      const bane = e.kind === 'damage' && e.bane === 'construct' && group.def.construct;
+      const damage = Math.max(1, rollSpellDice(c, spell, this.rng)) * (bane ? 2 : 1);
       events.push({
-        text: `${capitalize(withArticle(group.def))} takes ${damage}.`,
+        text: `${capitalize(withArticle(group.def))} takes ${damage}${bane ? ' (it rusts!)' : ''}.`,
         sfx: 'hit',
         fx: { kind: 'hit', group: this.groups.indexOf(group), target: member, amount: damage },
       });
