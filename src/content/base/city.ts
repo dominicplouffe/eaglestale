@@ -17,7 +17,7 @@ export const talonreach: DungeonDef = {
     {
       name: 'Talonreach',
       grid: [
-        '###################################',
+        '###########N#######################',
         '#.............................m...#',
         '#.#########.#n#########.####.####.#',
         '#.#########.###########.####.C###.#',
@@ -122,6 +122,16 @@ export const talonreach: DungeonDef = {
           text: 'The East Gate is barred. A notice says: ROAD TO THE MOULTED WOOD CLOSED BY ORDER OF THE MAYOR. TOO MANY TREES. The guards say they will open it for "proper heroes".',
           opened: 'The gate guards see the golden glow of the feathers you carry, salute, and haul the East Gate open. Beyond it, the road runs into a wood of grey, drifting feathers.',
           hotkey: 'x',
+        },
+        N: {
+          kind: 'building',
+          name: 'The North Gate',
+          dungeon: 'nest',
+          needs: 'aquila-home',
+          flag: 'nest-entered',
+          text: 'The North Gate, at the top of Market Street, has been barred so long that ivy grows through it. Beyond it, the old pilgrims\' road climbs Mount Talon to Aquila\'s nest. "Nobody goes up there till the Great Eagle comes home," says the gatekeeper.',
+          opened: 'The gatekeeper looks up at the golden sky, grins, and unbars the North Gate. "Aquila\'s home, and something\'s squawking up at her old nest. Mind how you go!" Beyond, the pilgrims\' road climbs into the snow.',
+          hotkey: 'n',
         },
         q: {
           kind: 'building',

@@ -258,3 +258,22 @@ test('the East Gate opens for eight feathers, and the twelfth feather ends the s
   await expect(page.locator('#location')).toHaveText('Victory!');
   await expect(log(page).last()).toHaveText(/Eagle's Tale is complete/);
 });
+
+test('after the ending, the North Gate opens onto Mount Talon', async ({ page }) => {
+  await startWithParty(page);
+  const setUp = (script: string) => page.evaluate(script);
+  await setUp(`import('/src/screens/dungeon.ts').then(({ dungeonScreen }) => {
+    const g = window.__game; g.state.location = { dungeon: 'talonreach', level: 0, x: 11, y: 1, dir: 0 }; g.go(dungeonScreen);
+  })`);
+  await page.keyboard.press('ArrowUp');
+  await expect(log(page).last()).toHaveText(/North Gate.*It won't budge/);
+  await setUp(`window.__game.state.story['aquila-home'] = true`);
+  await page.keyboard.press('ArrowUp');
+  await expect(menuTitle(page)).toHaveText('Climb Mount Talon?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText("Mount Talon - The Pilgrims' Road (level 1)");
+  await page.keyboard.press('e');
+  await expect(menuTitle(page)).toHaveText('Go back to Talonreach?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText(/^Talonreach - /);
+});

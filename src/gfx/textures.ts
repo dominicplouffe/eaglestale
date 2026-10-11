@@ -773,6 +773,101 @@ function forestGround(p: Paint, rng: Rng, ground: RGB): void {
   }
 }
 
+/** A cliff: slabs of rock split by fissures, snow caught on a ledge and in the hollows (and drifted at its foot). */
+function rockFace(p: Paint, rng: Rng, rock: RGB, snow: RGB, foot: boolean): void {
+  for (let y = 0; y < TEX; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const n = Math.sin(x * 0.35 + y * 0.12) + Math.sin(y * 0.5 - x * 0.08) * 0.6;
+      p.set(x, y, mul(rock, 0.8 + n * 0.07 + rng.next() * 0.07));
+    }
+  }
+  for (let i = 0; i < 5; i++) blotch(p, rng, rng.int(0, 31), rng.int(0, 31), rng.int(3, 6), mul(rock, rng.chance(0.5) ? 0.72 : 1.12));
+  // Fissures, dark with a lit edge.
+  for (let i = 0; i < 3; i++) {
+    let x = rng.int(2, 29);
+    const y0 = rng.int(0, 14);
+    const length = rng.int(8, 20);
+    for (let y = y0; y < Math.min(TEX, y0 + length); y++) {
+      p.set(x, y, mul(rock, 0.45));
+      p.set(x + 1, y, mul(rock, 1.18));
+      if (rng.chance(0.3)) x = Math.min(29, Math.max(1, x + rng.int(-1, 1)));
+    }
+  }
+  // A ledge, with snow lying on it and shadow underneath.
+  const ly = rng.int(8, 22);
+  const x0 = rng.int(0, 20);
+  const w = rng.int(6, 12);
+  for (let x = x0; x < x0 + w; x++) {
+    p.set(x, ly, mul(snow, 0.92 + rng.next() * 0.08));
+    if (x > x0 && x < x0 + w - 1) p.set(x, ly - 1, snow);
+    p.set(x, ly + 1, mul(rock, 0.5));
+  }
+  for (let i = 0; i < 3; i++) blotch(p, rng, rng.int(0, 31), rng.int(0, 31), 2, mul(snow, 0.95));
+  if (!foot) return;
+  for (let x = 0; x < TEX; x++) {
+    const h = 3 + Math.round(1.5 * Math.sin(x * 0.5) + rng.next() * 2);
+    p.rect(x, TEX - h, 1, h, (_x, y) => mul(snow, y === TEX - h ? 1 : 0.86 + rng.next() * 0.06));
+  }
+}
+
+/** The top of a cliff: rock rising to ragged, snow-capped peaks against the sky. */
+function peakFace(rng: Rng, rock: RGB, snow: RGB): Paint {
+  const p = new Paint();
+  rockFace(p, rng, rock, snow, false);
+  for (let x = 0; x < TEX; x++) {
+    const h = Math.max(0, 9 + Math.round(5 * Math.sin(x * 0.45 + 0.5) + 3 * Math.sin(x * 1.3 + 2) + rng.next() * 2));
+    p.clear(x, 0, 1, h);
+    const cap = 3 + rng.int(0, 2);
+    for (let k = 0; k < cap; k++) p.set(x, h + k, mul(snow, 1 - k * 0.05));
+  }
+  return p;
+}
+
+function rockStorey(rng: Rng, rock: RGB, snow: RGB): Paint {
+  const p = new Paint();
+  rockFace(p, rng, rock, snow, false);
+  return p;
+}
+
+/** Trodden snow, blue in the hollows, with stones poking through. */
+function snowGround(p: Paint, rng: Rng, snow: RGB): void {
+  p.rect(0, 0, TEX, TEX, () => mul(snow, 0.9 + rng.next() * 0.08));
+  for (let i = 0; i < 6; i++) blotch(p, rng, rng.int(0, 31), rng.int(0, 31), rng.int(3, 6), mix(snow, [120, 150, 200], 0.35));
+  for (let i = 0; i < 7; i++) {
+    const x = rng.int(0, 30);
+    const y = rng.int(0, 30);
+    p.rect(x, y, 2, 1, [104, 100, 104]);
+    p.set(x, y + 1, [70, 68, 74]);
+  }
+}
+
+/** Pilgrims' prayer flags strung across the rock (two frames: they flap in the wind). */
+function prayerFlags(base: Paint, frame: number): Paint {
+  const p = base.copy();
+  const colours: RGB[] = [[200, 50, 50], [230, 200, 60], [60, 150, 80], [60, 100, 200], [235, 235, 235]];
+  const line = (x: number) => 8 - Math.round(Math.abs(x - 15.5) / 5);
+  for (let x = 0; x < TEX; x++) p.set(x, line(x), [60, 50, 40]);
+  for (let i = 0; i < 6; i++) {
+    const x0 = 1 + i * 5;
+    const sway = (frame + i) % 2;
+    p.rect(x0 + sway, line(x0 + 1) + 1, 3, 4, colours[i % colours.length]);
+    p.set(x0 + 2 + sway, line(x0 + 1) + 4, mul(colours[i % colours.length], 0.7));
+  }
+  return p;
+}
+
+/** A wall of blue ice across the way. */
+function iceWall(base: Paint, rng: Rng): Paint {
+  const p = base.copy();
+  p.rect(1, 2, 30, 30, (x, y) => mix([160, 200, 230], [230, 245, 255], ((x * 3 + y * 5) % 11) / 14 + rng.next() * 0.1));
+  for (let i = 0; i < 5; i++) crack(p, rng, rng.int(3, 28), rng.int(3, 15), rng.int(5, 12));
+  for (let i = 0; i < 4; i++) {
+    const x = rng.int(3, 20);
+    for (let k = 0; k < 7; k++) p.set(x + k, 5 + k * 3, [245, 252, 255]);
+  }
+  return p;
+}
+
 function build(theme: DungeonTheme): ThemeTextures {
   const style = theme.style ?? 'brick';
   const rng = new Rng(theme.wall.length * 7919 + parseInt(theme.wall.slice(1), 16));
@@ -785,7 +880,11 @@ function build(theme: DungeonTheme): ThemeTextures {
   let floorAlt: Paint | null = null;
   const ceiling = new Paint();
 
-  if (style === 'forest') {
+  if (style === 'mountain') {
+    rockFace(wall, rng, wallC, parse(theme.door), true);
+    snowGround(floor, rng, floorC);
+    ceiling.rect(0, 0, TEX, TEX, ceilC);
+  } else if (style === 'forest') {
     forestFloorStorey(wall, rng, wallC, parse(theme.door));
     forestGround(floor, rng, floorC);
     ceiling.rect(0, 0, TEX, TEX, ceilC);
@@ -858,13 +957,18 @@ function build(theme: DungeonTheme): ThemeTextures {
     : style === 'sewer' ? [pipe(wall, 0), pipe(wall, 1)]
     : style === 'clockwork' ? [wallGear(wall, 0, wallC), wallGear(wall, 1, wallC)]
     : style === 'forest' ? [forestFeature(wall, 0), forestFeature(wall, 1)]
+    : style === 'mountain' ? [prayerFlags(wall, 0), prayerFlags(wall, 1)]
     : [sconce(wall, 0), sconce(wall, 1)];
   const leaves = parse(theme.door);
   const upper =
     style === 'city' ? [upperStorey(wall, rng, true, shutter), upperStorey(wall, rng, false, shutter)]
     : style === 'forest' ? [canopyFace(rng, leaves, false), canopyFace(rng, leaves, false)]
+    : style === 'mountain' ? [rockStorey(rng, wallC, leaves), rockStorey(rng, wallC, leaves)]
     : [];
-  const top = style === 'forest' ? [canopyFace(rng, leaves, true), canopyFace(rng, leaves, true)] : [];
+  const top =
+    style === 'forest' ? [canopyFace(rng, leaves, true), canopyFace(rng, leaves, true)]
+    : style === 'mountain' ? [peakFace(rng, wallC, leaves), peakFace(rng, wallC, leaves)]
+    : [];
   const signPaint: Partial<Record<PlaceId, Paint>> = {};
   if (style === 'city') for (const [place, art] of Object.entries(SIGNS)) signPaint[place as PlaceId] = buildingDoor(wall, parse(theme.door), art);
   const marks = landmarkTextures(rng, parse(theme.door));
@@ -877,8 +981,8 @@ function build(theme: DungeonTheme): ThemeTextures {
   return {
     wall: wall.bake(),
     feature: [feature[0].bake(), feature[1].bake()],
-    featureEvery: style === 'city' ? 2 : style === 'clockwork' ? 4 : style === 'forest' ? 5 : 7,
-    storeys: style === 'city' ? 2 : style === 'forest' ? 3 : 1,
+    featureEvery: style === 'city' ? 2 : style === 'clockwork' ? 4 : style === 'forest' ? 5 : style === 'mountain' ? 6 : 7,
+    storeys: style === 'city' ? 2 : style === 'forest' || style === 'mountain' ? 3 : 1,
     upper: upper.map((u) => u.bake()),
     top: top.map((u) => u.bake()),
     floor: floor.bake(),
@@ -888,6 +992,7 @@ function build(theme: DungeonTheme): ThemeTextures {
     doorShut: (style === 'sewer' ? sluiceGate(wall)
       : style === 'clockwork' ? vaultDoor(wall, wallC)
       : style === 'forest' ? thornWall(wall, rng)
+      : style === 'mountain' ? iceWall(wall, rng)
       : shutDoor(wall, parse(theme.door))).bake(),
     stairsDown: stairsDown(floor, rng).bake(),
     stairsUpFloor: lightPool(floor).bake(),

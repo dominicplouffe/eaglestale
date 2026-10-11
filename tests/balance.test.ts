@@ -1,9 +1,10 @@
 /**
  * Boss balance: simulated six-hero parties (full health, sensible orders, starting kit) against the
- * bosses of the first three chapters. Each should stop an under-levelled party and fall to one at
- * the expected level, so the difficulty curve can't drift silently. Real players arrive hurt, so
- * real fights are harder. Later bosses are tuned for parties in shop gear: see progression.test.ts,
- * which checks every boss against the levels and gear a party really has when it gets there.
+ * bosses of the first two chapters, and the set fights after. Each boss should stop an
+ * under-levelled party and fall to one at the expected level, so the difficulty curve can't drift
+ * silently. Real players arrive hurt, so real fights are harder. From the Clocktower on, bosses are
+ * tuned for parties in the gear they have bought and found: see progression.test.ts, which checks
+ * every boss against the levels and gear a party really has when it gets there.
  */
 import { describe, expect, it } from 'vitest';
 import { bossFight, rate, shopGear } from './sim';
@@ -38,16 +39,6 @@ describe('boss balance', () => {
     expect(rate(7, bossFight(0, 'f', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
     expect(rate(8, bossFight(1, 'f', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
     expect(rate(8, bossFight(1, 'Q', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
-  });
-
-  it('the Grinder needs a level 11 party', () => {
-    expect(rate(9, bossFight(1, 'G', 'clocktower'))).toBeLessThan(0.3);
-    expect(rate(12, bossFight(1, 'G', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
-  });
-
-  it('Professor Pinion and his Mechanical Eagle need a level 12-13 party', () => {
-    expect(rate(11, bossFight(2, 'E', 'clocktower'))).toBeLessThan(0.5);
-    expect(rate(13, bossFight(2, 'E', 'clocktower'))).toBeGreaterThanOrEqual(0.75);
   });
 
   it("the Clocktower's set fights are beatable by a party that has just arrived", () => {

@@ -14,7 +14,7 @@ export const story = {
     'You climb the Eagle Tower one last time and lay the final feathers beside the other ten. For a long moment, nothing happens.',
     'Then all twelve blaze gold at once. The clouds over Talonreach split from end to end, a great shadow sweeps across the rooftops, and AQUILA, the Great Eagle, settles on her perch with every feather exactly where it belongs.',
     'The bakeries reopen for good. The pillows forgive everyone. Malachar the Plucker, last seen being carried off by a flock of very indignant pigeons, has not been heard from since.',
-    "Congratulations, heroes. Eagle's Tale is complete... but the Guild still has bounties, and the tower keepers say something stirs in Aquila's old nest. Keep playing to find out.",
+    "Congratulations, heroes. Eagle's Tale is complete... but the Guild still has bounties, and the tower keepers have unbarred the North Gate: something stirs in Aquila's old nest, at the top of Mount Talon. Keep playing to find out.",
   ],
 };
 

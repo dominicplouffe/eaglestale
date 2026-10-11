@@ -182,6 +182,28 @@ export const quests: QuestDef[] = [
     ],
     done: 'All twelve feathers are home. Aquila is home.',
     ending: true,
+    // After the ending: the North Gate opens, and the way up Mount Talon to Aquila's old nest.
+    flag: 'aquila-home',
+    next: ['mq-nest'],
+  },
+  {
+    id: 'mq-nest',
+    name: "Aquila's Old Nest",
+    kind: 'main',
+    source: 'given',
+    summary: "Something has hatched in Aquila's old nest at the top of Mount Talon. Climb up and find out what.",
+    steps: [
+      {
+        text: "With Aquila home, the tower keepers have unbarred the North Gate, at the top of Market Street. Beyond it, the old pilgrims' road climbs Mount Talon. Climb it.",
+        goal: { kind: 'flag', flag: 'nest-entered' },
+      },
+      {
+        text: "Something squawks in Aquila's old nest, at the very top of the mountain, and it has found Malachar's hat. Find out what hatched there.",
+        goal: { kind: 'flag', flag: 'changeling-defeated' },
+      },
+    ],
+    reward: { gold: 10000, xp: 30000 },
+    done: 'The Changeling shrinks, and shrinks, until it is just a fluffy yellow chick without a hat, cheeping in the snow. Aquila swoops down, tucks it under one great wing, and looks at you for a long moment. Then she bows her head. In Talonreach the bells ring all night, and the bakers name a bun after you.',
   },
 
   // ---- Side tasks, given by people met in the dungeon ----
@@ -329,6 +351,31 @@ export const quests: QuestDef[] = [
     steps: [{ text: "Free Peep the eaglet. Wren says she is caged in the Storm Gallery, near the top of the Spire.", goal: { kind: 'flag', flag: 'eaglet-freed' } }],
     reward: { item: 'falconerglove', xp: 2500 },
     done: "Peep finds Wren in the Plucking Hall, and the falconer leaves a pair of gauntlets by the stairs for you, with a note: \"For the heroes. Mind the beak.\"",
+  },
+
+  {
+    id: 'sq-flags',
+    name: 'Prayer Flags',
+    kind: 'side',
+    source: 'given',
+    summary: "Hang Brother Tumble's prayer flags back up on Mount Talon.",
+    steps: [
+      { text: "Hang Brother Tumble's prayer flags back up (one of three): one on the Pilgrims' Road, two on the Crags.", goal: { kind: 'flag', flag: 'prayer-flag-1' } },
+      { text: "Hang Brother Tumble's prayer flags back up (two of three).", goal: { kind: 'flag', flag: 'prayer-flag-2' } },
+      { text: "Hang Brother Tumble's prayer flags back up (three of three).", goal: { kind: 'flag', flag: 'prayer-flag-3' } },
+    ],
+    reward: { item: 'aquilasgaze', xp: 6000 },
+    done: 'Far below, Brother Tumble rings a little bell. When you next pass his hut there is a circlet of golden feathers on the step, and a note: "Found this in the snow years ago. I think it was waiting for you."',
+  },
+  {
+    id: 'sq-hortensia',
+    name: 'Hands Off',
+    kind: 'side',
+    source: 'given',
+    summary: "Find Dame Hortensia Crag's ice axe in the ice caves of the Crags.",
+    steps: [{ text: "Find Dame Hortensia's ice axe. A crag eagle dropped it into an ice cave somewhere on the Crags.", goal: { kind: 'collect', item: 'iceaxe', count: 1 } }],
+    reward: { item: 'zephyrcloak', xp: 6000 },
+    done: '"My axe! Splendid!" Dame Hortensia hacks herself free of the ledge in three blows and hands you a cloak that seems to float. "My spare. The wind holds it up. Don\'t ask me how; I\'m a climber, not a wizard."',
   },
 
   // ---- Bounties, from the Guild's board ----
@@ -538,5 +585,38 @@ export const quests: QuestDef[] = [
     steps: [{ text: "Collect 8 hex shards from Malachar's Adepts.", goal: { kind: 'collect', item: 'hexshard', count: 8 } }],
     reward: { gold: 2400, item: 'wardcharm' },
     done: 'The priests of the Gentle Peck break the shards one by one, very gently. The last one sounds like a sneeze.',
+  },
+  {
+    id: 'b-snowwolves',
+    name: 'Snowed Under',
+    kind: 'side',
+    source: 'board',
+    summary: "Snow wolves have come down from Mount Talon to howl at the North Gate. Thin the pack: defeat ten.",
+    requires: { quests: ['mq-spire'] },
+    steps: [{ text: 'Defeat 10 Snow Wolves on Mount Talon.', goal: { kind: 'kill', monster: 'snowwolf', count: 10 } }],
+    reward: { gold: 3000, xp: 4000 },
+    done: 'The North Gate guards sleep through the night for the first time in a week, and say so, loudly, all morning.',
+  },
+  {
+    id: 'b-plumes',
+    name: 'Hats Off',
+    kind: 'side',
+    source: 'board',
+    summary: "A hatter on Quill Street wants golden plumes for the Mayor's new hat. Bring 6 from crag eagles.",
+    requires: { quests: ['mq-spire'] },
+    steps: [{ text: 'Collect 6 Crag Eagle Plumes.', goal: { kind: 'collect', item: 'cragplume', count: 6 } }],
+    reward: { gold: 3500, item: 'sunelixir' },
+    done: "The Mayor's new hat has so many plumes he can't get through the Town Hall door. He is delighted.",
+  },
+  {
+    id: 'b-stormwisps',
+    name: 'Fair Weather',
+    kind: 'side',
+    source: 'board',
+    summary: 'Storm wisps keep blowing down off the mountain and curdling the milk. Put out eight.',
+    requires: { quests: ['mq-spire'] },
+    steps: [{ text: 'Defeat 8 Storm Wisps.', goal: { kind: 'kill', monster: 'stormwisp', count: 8 } }],
+    reward: { gold: 3000, xp: 4000 },
+    done: 'The milk in Talonreach stays fresh all week. The dairy sends round a cheese the size of a cartwheel.',
   },
 ];

@@ -124,7 +124,7 @@ export const monsters: MonsterDef[] = [
     sprite: 'golem',
   },
   {
-    id: 'grinder', name: 'The Grinder', plural: 'Grinders', unique: true, construct: true, hp: [22, 10, 60], def: 12, toHit: 14, speed: 3, xp: 2600, gold: [12, 12], actions: 2,
+    id: 'grinder', name: 'The Grinder', plural: 'Grinders', unique: true, construct: true, hp: [28, 10, 90], def: 12, toHit: 17, speed: 3, xp: 2600, gold: [12, 12], actions: 2,
     attacks: [{ verb: 'grinds', dice: [3, 8, 6] }, { verb: 'sprays boiling oil over', dice: [1, 10, 2], all: true }],
     sprite: 'golem', palette: { I: '#d8b060', i: '#9a7838', j: '#5e4422' },
   },
@@ -137,7 +137,7 @@ export const monsters: MonsterDef[] = [
     sprite: 'tinsoldier', palette: { B: '#b89030', b: '#7a5a20' },
   },
   {
-    id: 'mecheagle', name: 'The Mechanical Eagle', plural: 'Mechanical Eagles', unique: true, construct: true, hp: [28, 10, 90], def: 14, toHit: 18, speed: 7, xp: 3600, gold: [10, 10], actions: 2,
+    id: 'mecheagle', name: 'The Mechanical Eagle', plural: 'Mechanical Eagles', unique: true, construct: true, hp: [32, 10, 120], def: 14, toHit: 20, speed: 7, xp: 3600, gold: [10, 10], actions: 2,
     attacks: [
       { verb: 'rakes with steel talons', dice: [3, 8, 6] },
       { verb: 'beats its tin wings at', dice: [2, 6, 2], all: true },
@@ -191,7 +191,7 @@ export const monsters: MonsterDef[] = [
     sprite: 'ghost', palette: { W: '#f4fff8', L: '#c8f0d8', M: '#90d0b0', N: '#5a9a7a', O: '#3a6a54', F: '#1e3a2e' },
   },
   {
-    id: 'warden', name: 'The Aviary Warden', plural: 'Aviary Wardens', unique: true, hp: [30, 10, 110], def: 13, toHit: 21, speed: 4, xp: 4000, gold: [15, 10], actions: 2,
+    id: 'warden', name: 'The Aviary Warden', plural: 'Aviary Wardens', unique: true, hp: [34, 10, 140], def: 13, toHit: 23, speed: 4, xp: 4000, gold: [15, 10], actions: 2,
     attacks: [
       { verb: 'rattles a ring of cage keys at', dice: [3, 8, 6] },
       { verb: 'wails a lament over', dice: [2, 6, 4], all: true },
@@ -201,7 +201,7 @@ export const monsters: MonsterDef[] = [
 
   // The Moulted Wood: the Thorn Grove
   {
-    id: 'archdruid', name: 'Archdruid Bramblebeard', plural: 'Archdruids', unique: true, hp: [34, 10, 130], def: 13, toHit: 22, speed: 5, xp: 5000, gold: [20, 10], actions: 2,
+    id: 'archdruid', name: 'Archdruid Bramblebeard', plural: 'Archdruids', unique: true, hp: [42, 10, 200], def: 13, toHit: 25, speed: 5, xp: 5000, gold: [20, 10], actions: 2,
     attacks: [
       { verb: 'lashes with a thorn staff', dice: [3, 8, 8] },
       { verb: 'calls a storm of thorns down on', dice: [2, 8, 4], all: true },
@@ -238,7 +238,7 @@ export const monsters: MonsterDef[] = [
     sprite: 'boneknight', palette: { armour: '#3a2e4a' },
   },
   {
-    id: 'stormroc', name: 'The Storm Roc', plural: 'Storm Rocs', unique: true, hp: [34, 10, 120], def: 14, toHit: 24, speed: 8, xp: 6000, gold: [20, 10], actions: 2,
+    id: 'stormroc', name: 'The Storm Roc', plural: 'Storm Rocs', unique: true, hp: [40, 10, 170], def: 14, toHit: 26, speed: 8, xp: 6000, gold: [20, 10], actions: 2,
     attacks: [
       { verb: 'rakes with lightning talons', dice: [3, 10, 8] },
       { verb: 'beats up a thunderstorm over', dice: [2, 8, 4], all: true },
@@ -251,9 +251,9 @@ export const monsters: MonsterDef[] = [
     name: 'Malachar the Plucker',
     plural: 'Malachars',
     unique: true,
-    hp: [48, 10, 340],
+    hp: [60, 10, 440],
     def: 16,
-    toHit: 25,
+    toHit: 27,
     speed: 6,
     xp: 8000,
     gold: [40, 20],
@@ -264,5 +264,60 @@ export const monsters: MonsterDef[] = [
       { verb: 'unleashes a Moulting Storm on', dice: [3, 8, 4], all: true },
     ],
     sprite: 'malachar',
+  },
+  // Mount Talon and Aquila's old nest (after the story: tougher than anything before)
+  {
+    id: 'snowwolf', name: 'Snow Wolf', plural: 'Snow Wolves', hp: [6, 8, 24], def: 16, toHit: 22, speed: 8, xp: 700, gold: [2, 8],
+    attacks: [{ verb: 'bites', dice: [2, 10, 8] }],
+    sprite: 'thornwolf', palette: { fur: '#e8eef4', T: '#a8d0f0', t: '#6890c0', N: '#3a4a68' },
+  },
+  {
+    id: 'frostbear', name: 'Frost Bear', plural: 'Frost Bears', hp: [9, 10, 30], def: 16, toHit: 23, speed: 3, xp: 1000, gold: [3, 10],
+    attacks: [{ verb: 'mauls', dice: [3, 8, 8] }, { verb: 'hurls a block of ice at', dice: [2, 8, 6], ranged: true }],
+    sprite: 'bear', palette: { B: '#eef2f6', b: '#a8b4c8', m: '#b8e0f8', n: '#3a4a68', e: '#2a5aa8' },
+  },
+  {
+    id: 'crageagle', name: 'Crag Eagle', plural: 'Crag Eagles', hp: [7, 10, 24], def: 17, toHit: 23, speed: 9, xp: 900, gold: [2, 10],
+    attacks: [{ verb: 'rakes', dice: [2, 10, 8] }, { verb: 'dives at', dice: [2, 8, 8], ranged: true }],
+    drops: [{ item: 'cragplume', chance: 0.5 }],
+    sprite: 'eagle', palette: { W: '#f8e8b0', w: '#d8b870', m: '#a08040', b: '#9a6a30', B: '#6a4418', G: '#d89a48', g: '#a86a30', L: '#f0c070' },
+  },
+  {
+    id: 'stormwisp', name: 'Storm Wisp', plural: 'Storm Wisps', hp: [4, 6, 22], def: 20, toHit: 23, speed: 8, xp: 650, gold: [0, 0],
+    attacks: [{ verb: 'crackles at', dice: [3, 6, 6], ranged: true }],
+    sprite: 'wisp', palette: { glow: '#a8c8ff', a: '#24345e', k: '#2a3a7a' },
+  },
+  {
+    id: 'chick', name: 'Changeling Chick', plural: 'Changeling Chicks', hp: [5, 8, 20], def: 15, toHit: 22, speed: 6, xp: 550, gold: [0, 4],
+    attacks: [{ verb: 'pecks', dice: [2, 8, 6] }, { verb: 'cheeps a hex at', dice: [2, 6, 6], ranged: true }],
+    sprite: 'crow', palette: { feather: '#ffd860', e: '#14121c', Y: '#f08a30', y: '#c86a20' },
+  },
+  {
+    id: 'skreel', name: 'Queen Skreel', plural: 'Queen Skreels', unique: true, hp: [44, 10, 290], def: 18, toHit: 28, speed: 9, xp: 9000, gold: [20, 10], actions: 2,
+    attacks: [
+      { verb: 'rakes with golden talons', dice: [3, 10, 10] },
+      { verb: 'stirs up a blizzard over', dice: [2, 8, 6], all: true },
+      { verb: 'dives at', dice: [3, 8, 8], ranged: true },
+    ],
+    sprite: 'eagle', palette: { W: '#ffffff', w: '#e0e4f0', m: '#a0a8c0', b: '#e8c060', B: '#a87a2a', G: '#f4f0e0', g: '#c8c0a8', L: '#ffffff', Y: '#ffd84a', y: '#e8a020' },
+  },
+  {
+    id: 'changeling',
+    name: 'The Changeling',
+    plural: 'Changelings',
+    unique: true,
+    hp: [44, 10, 360],
+    def: 19,
+    toHit: 26,
+    speed: 7,
+    xp: 20000,
+    gold: [40, 20],
+    actions: 2,
+    attacks: [
+      { verb: 'pecks', dice: [4, 10, 8] },
+      { verb: "cheeps one of Malachar's hexes at", dice: [3, 10, 6], ranged: true },
+      { verb: 'flaps up a Moulting Storm over', dice: [3, 8, 6], all: true },
+    ],
+    sprite: 'changeling',
   },
 ];

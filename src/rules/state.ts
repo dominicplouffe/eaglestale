@@ -1,7 +1,7 @@
 import { content } from '../content/registry';
 import { MAX_PARTY } from './character';
 import { isWalkable, tileAt } from './dungeon';
-import { startOpeningQuests, type QuestProgress } from './quests';
+import { catchUpQuests, startOpeningQuests, type QuestProgress } from './quests';
 import { SLOTS, type Character } from './types';
 
 export interface DungeonPosition {
@@ -198,7 +198,7 @@ function checkContent(state: GameState): LoadResult {
   state.party = state.party.filter((id) => state.roster.some((c) => c.id === id)).slice(0, MAX_PARTY);
   state.feathers = state.feathers.filter((id) => content.feathers.has(id));
   // New content may bring new opening quests (e.g. a new chapter): start them for old saves too.
-  notes.push(...startOpeningQuests(state).filter((line) => line.startsWith('New')));
+  notes.push(...[...startOpeningQuests(state), ...catchUpQuests(state)].filter((line) => line.startsWith('New')));
   const loc = state.location;
   if (loc) {
     const level = content.dungeons.get(loc.dungeon)?.levels[loc.level];

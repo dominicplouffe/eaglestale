@@ -73,6 +73,21 @@ export function startOpeningQuests(s: GameState): string[] {
   return [...content.quests.values()].filter((q) => q.source === 'start').flatMap((q) => startQuest(s, q.id));
 }
 
+/**
+ * For old saves meeting new content: finished quests set their flags and start their follow-on
+ * quests, even if they were finished before those existed (a new chapter after the ending, say).
+ */
+export function catchUpQuests(s: GameState): string[] {
+  const out: string[] = [];
+  for (const [id, p] of Object.entries(s.quests)) {
+    if (p.status !== 'done' || !content.quests.has(id)) continue;
+    const q = content.quest(id);
+    if (q.flag) s.story[q.flag] = true;
+    for (const next of q.next ?? []) out.push(...startQuest(s, next));
+  }
+  return out;
+}
+
 /** Moves a quest through every step whose goal is already met. */
 function advance(s: GameState, id: string): string[] {
   const q = content.quest(id);
@@ -96,6 +111,7 @@ function finish(s: GameState, id: string): string[] {
   const q = content.quest(id);
   s.quests[id].status = 'done';
   if (q.ending) s.won = true;
+  if (q.flag) s.story[q.flag] = true;
   // Bounties take what was collected; other quests take only story items (the rest are the party's to keep).
   handOver(s, q, q.source !== 'board');
   const out = [q.done, ...giveReward(s, q.reward)];
