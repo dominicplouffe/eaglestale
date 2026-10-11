@@ -4,6 +4,7 @@ import { Battle } from '../src/rules/combat';
 import {
   availableBounties,
   cityStage,
+  collectLoot,
   gainFeather,
   giveItem,
   giveReward,
@@ -178,6 +179,20 @@ describe('quests', () => {
     expect(giveItem(s, 'test-letter')).toMatch(/Hero crams the Test Letter in on top/);
     expect(giveReward(s, { item: 'test-tail' })[0]).toMatch(/crams/);
     expect(hero.inventory).toHaveLength(10);
+  });
+
+  it('trophies go in the pouch, not a pack, and only while a bounty wants them', () => {
+    const s = game();
+    expect(collectLoot(s, ['rattail', 'rattail'])).toEqual([]);
+    expect(s.trophies).toEqual({});
+    takeBounty(s, 'b-rats');
+    expect(collectLoot(s, Array(12).fill('rattail'))).toEqual(['Into the trophy pouch: 10 x Rat Tail (10 now).']);
+    expect(s.trophies).toEqual({ rattail: 10 });
+    expect(s.roster[0].inventory).toEqual([]);
+    questEvent(s, { kind: 'check' });
+    expect(s.quests['b-rats'].status).toBe('ready');
+    turnIn(s, 'b-rats');
+    expect(s.trophies).toEqual({});
   });
 
   it('a lock can wait on a story flag (a wheel turned somewhere else)', () => {

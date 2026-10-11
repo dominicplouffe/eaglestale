@@ -16,7 +16,7 @@ import {
   type MonsterInstance,
   type Order,
 } from '../rules/combat';
-import { giveItem, questEvent } from '../rules/quests';
+import { collectLoot, questEvent } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { canCast } from '../rules/spells';
 import type { Assist, Character, DungeonLevel, DungeonTheme, SpellDef } from '../rules/types';
@@ -112,6 +112,8 @@ interface Flare {
 const NOTE = ['.##', '.#.', '.#.', '##.', '##.'];
 
 class CombatScreen implements Screen {
+  /** Potions and spells go through the battle menu, so the hero sheet is look-only. */
+  readonly lookOnly = true;
   private battle!: Battle;
   private game!: Game;
   private orders = new Map<string, Order>();
@@ -680,7 +682,7 @@ class CombatScreen implements Screen {
         game.state.gold += battle.goldEarned;
         await this.play(battle.awardExperience());
         // Spoils and quest progress: dropped items, then kills counted toward any quests.
-        for (const item of battle.loot()) game.say(giveItem(game.state, item), 'gold');
+        for (const line of collectLoot(game.state, battle.loot())) game.say(line, 'gold');
         for (const [monster, count] of Object.entries(battle.kills)) {
           for (const line of questEvent(game.state, { kind: 'kill', monster, count })) game.say(line, 'gold');
         }

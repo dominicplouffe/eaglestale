@@ -42,6 +42,12 @@ export function openJournal(game: Game, onClose: () => void): void {
   root.append(el('h3', { text: 'Side tasks and bounties' }));
   if (side.length === 0) root.append(el('div', { class: 'dim', text: 'None. The Guild bounty board always has work.' }));
   for (const q of side) root.append(questRow(q));
+  const trophies = Object.entries(s.trophies).filter(([, n]) => n > 0);
+  if (trophies.length) {
+    root.append(
+      el('div', { class: 'dim', text: `Trophy pouch: ${trophies.map(([id, n]) => `${n} x ${content.item(id).name}`).join(', ')}` }),
+    );
+  }
 
   const total = content.feathers.size;
   root.append(el('h3', { text: `Aquila's feathers: ${s.feathers.length} of ${total} found, ${s.offered} returned` }));

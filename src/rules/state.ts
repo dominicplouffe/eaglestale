@@ -1,7 +1,7 @@
 import { content } from '../content/registry';
 import { MAX_PARTY } from './character';
 import { isWalkable, tileAt } from './dungeon';
-import { catchUpQuests, recoverStoryItems, startOpeningQuests, type QuestProgress } from './quests';
+import { catchUpQuests, isTrophy, recoverStoryItems, startOpeningQuests, type QuestProgress } from './quests';
 import { SLOTS, type Character } from './types';
 
 export interface DungeonPosition {
@@ -35,9 +35,11 @@ export interface GameState {
   offered: number;
   /** Story flags set by specials (bosses beaten, people met), which quests wait for. */
   story: Record<string, true>;
+  /** The trophy pouch: monster drops kept for bounties (they take no room in a pack), by item id. */
+  trophies: Record<string, number>;
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const STARTING_GOLD = 500;
 
 export function newGameState(): GameState {
@@ -56,6 +58,7 @@ export function newGameState(): GameState {
     feathers: [],
     offered: 0,
     story: {},
+    trophies: {},
   };
 }
 
@@ -121,6 +124,25 @@ const MIGRATIONS: Record<number, (old: SaveData, notes: string[]) => SaveData> =
     notes.push('The Roost Below has been rebuilt since you last played: its maps start fresh, and your party waits in town.');
     return { ...old, location: loc ?? null, flags: notRoost(old.flags), explored: notRoost(old.explored), quests: {}, feathers: [], offered: 0, story: {} };
   },
+  // Version 3 adds the trophy pouch: monster drops (rat tails and the like) move out of packs into it.
+  2: (old, notes) => {
+    const trophies: Record<string, number> = {};
+    let moved = 0;
+    const roster = Array.isArray(old.roster)
+      ? old.roster.map((c: unknown) => {
+          if (!isObject(c) || !Array.isArray(c.inventory)) return c;
+          const inventory = c.inventory.filter((id: unknown) => {
+            if (typeof id !== 'string' || !isTrophy(id)) return true;
+            trophies[id] = (trophies[id] ?? 0) + 1;
+            moved += 1;
+            return false;
+          });
+          return { ...c, inventory };
+        })
+      : old.roster;
+    if (moved > 0) notes.push(`Trophies (rat tails and the like) no longer take up room in packs: ${moved} moved to the party's trophy pouch.`);
+    return { ...old, roster, trophies };
+  },
 };
 
 const DAMAGED = 'The save file is damaged.';
@@ -172,6 +194,7 @@ function hasStateShape(d: SaveData): d is SaveData & GameState {
     Array.isArray(d.feathers) &&
     typeof d.offered === 'number' &&
     isObject(d.story) &&
+    isObject(d.trophies) &&
     (d.location === null || isObject(d.location))
   );
 }

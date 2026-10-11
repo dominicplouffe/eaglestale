@@ -3,12 +3,14 @@ import { newGameState, partyMembers, startingState, type GameState, type LoadRes
 import type { Audio } from './audio';
 import { SaveSlots, slotName, type SlotId } from './saves';
 import type { LogStyle, Shell } from './shell';
-import { inspectPanel } from '../ui/inspect';
+import { forgetPicking, heroSheet } from '../ui/charSheet';
 import { renderPartyPanel } from '../ui/partyPanel';
 
 export interface Screen {
   enter(game: Game): void;
   exit?(game: Game): void;
+  /** While this screen is up, the hero sheet is look-only (in battle, say). */
+  readonly lookOnly?: boolean;
 }
 
 /** Ties together state, shell (DOM/canvas), audio and the active screen. */
@@ -50,20 +52,31 @@ export class Game {
   }
 
   refreshParty(activeId?: string): void {
-    renderPartyPanel(this.shell.partyEl, this.party, activeId, (id) =>
-      this.inspect(this.inspecting === id ? null : id),
-    );
+    this.renderParty(activeId);
     // Keep an open detail panel in step with HP, gear and level changes.
     if (this.inspecting) this.inspect(this.inspecting);
   }
 
-  /** Opens the read-only detail panel for a party member, or closes it with null. */
+  /**
+   * Opens the hero sheet for a party member (from their card, or from camp), or closes it with null.
+   * Gear, potions and camp spells can be used from it, except while the screen is look-only.
+   */
   inspect(id: string | null): void {
-    const party = this.party;
-    const index = party.findIndex((c) => c.id === id);
-    this.inspecting = index >= 0 ? id : null;
+    const hero = this.party.find((c) => c.id === id);
+    const was = this.inspecting;
+    this.inspecting = hero ? hero.id : null;
+    if (!hero) forgetPicking();
     const close = (): void => this.inspect(null);
-    this.shell.setInspect(index >= 0 ? inspectPanel(party[index], index, close) : null, close);
+    this.shell.setInspect(hero ? heroSheet(this, hero, !this.current?.lookOnly, close) : null, close);
+    // Highlight the hero being looked at.
+    if (was !== this.inspecting) this.renderParty();
+  }
+
+  /** Clicking a hero's card opens their sheet (or closes it if it is already open). */
+  private renderParty(activeId?: string): void {
+    renderPartyPanel(this.shell.partyEl, this.party, activeId ?? this.inspecting ?? undefined, (id) =>
+      this.inspect(this.inspecting === id ? null : id),
+    );
   }
 
   get hasSave(): boolean {

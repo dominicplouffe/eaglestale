@@ -55,6 +55,11 @@ test('explore, camp, save, and continue the saved game', async ({ page }) => {
 
   await page.keyboard.press('c');
   await expect(menuTitle(page)).toHaveText('Camp');
+  // The party sheet at camp is the same sheet a hero's card opens.
+  await page.keyboard.press('p');
+  await expect(page.locator('#inspect h2')).toHaveText('Sir Bonk');
+  await page.keyboard.press('Escape');
+  await expect(menuTitle(page)).toHaveText('Camp');
   await page.keyboard.press('v');
   await expect(page.locator('#overlay canvas.bigmap')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -116,6 +121,12 @@ test('inspect a hero, compare gear and buy in the shop', async ({ page }) => {
   await page.locator('.party-card').first().click();
   await expect(page.locator('#inspect h2')).toHaveText('Sir Bonk');
   await expect(page.locator('#inspect')).toContainText('Attributes');
+  // The card opens the full sheet: gear can come off, and the tabs switch hero.
+  await page.locator('#inspect .row', { hasText: 'Long Sword' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(page.locator('#inspect .row', { hasText: 'Long Sword' }).getByRole('button', { name: 'Equip' })).toBeVisible();
+  await page.locator('#inspect .row', { hasText: 'Long Sword' }).getByRole('button', { name: 'Equip' }).click();
+  await page.locator('#inspect').getByRole('button', { name: 'Zorp' }).click();
+  await expect(page.locator('#inspect h2')).toHaveText('Zorp');
   await page.keyboard.press('Escape');
   await expect(page.locator('#inspect')).toBeHidden();
 
