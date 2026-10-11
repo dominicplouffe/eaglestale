@@ -32,8 +32,57 @@ export const MAX_BOUNTIES = 3;
 const party = (s: GameState): Character[] =>
   s.party.map((id) => s.roster.find((c) => c.id === id)).filter((c): c is Character => !!c);
 
+/** How many of an item the party has: in its packs, and (for trophies) in its trophy pouch. */
 export function itemCount(s: GameState, itemId: string): number {
-  return party(s).reduce((n, c) => n + c.inventory.filter((i) => i === itemId).length, 0);
+  return party(s).reduce((n, c) => n + c.inventory.filter((i) => i === itemId).length, s.trophies[itemId] ?? 0);
+}
+
+// ---- Trophies ---------------------------------------------------------------------
+
+/**
+ * Trophies are what monsters drop for bounties (rat tails, cult sigils and the like). They go in the
+ * party's trophy pouch, which takes no room in anyone's pack.
+ */
+export function isTrophy(itemId: string): boolean {
+  const item = content.items.get(itemId);
+  if (!item || item.slot || item.use || item.quest) return false;
+  for (const m of content.monsters.values()) if (m.drops?.some((d) => d.item === itemId)) return true;
+  return false;
+}
+
+/** How many more of a trophy the party's quests and bounties still want. */
+function trophiesWanted(s: GameState, itemId: string): number {
+  let want = 0;
+  for (const q of activeQuests(s)) {
+    if (s.quests[q.id].status !== 'active') continue;
+    for (const step of q.steps.slice(s.quests[q.id].step)) {
+      if (step.goal.kind === 'collect' && step.goal.item === itemId) want += step.goal.count;
+    }
+  }
+  return want - itemCount(s, itemId);
+}
+
+/**
+ * What the party picks up after a battle. Trophies go in the pouch, and only while a quest or
+ * bounty still wants them; anything else goes in a pack. Returns what to tell the player.
+ */
+export function collectLoot(s: GameState, loot: string[]): string[] {
+  const out: string[] = [];
+  const got = new Map<string, number>();
+  for (const itemId of loot) {
+    if (!isTrophy(itemId)) {
+      out.push(giveItem(s, itemId));
+      continue;
+    }
+    if (trophiesWanted(s, itemId) <= 0) continue;
+    s.trophies[itemId] = (s.trophies[itemId] ?? 0) + 1;
+    got.set(itemId, (got.get(itemId) ?? 0) + 1);
+  }
+  for (const [itemId, n] of got) {
+    const name = content.item(itemId).name;
+    out.push(`Into the trophy pouch: ${n > 1 ? `${n} x ` : ''}${name} (${itemCount(s, itemId)} now).`);
+  }
+  return out;
 }
 
 /** How far along a goal is: `have` of `need`. */
@@ -125,6 +174,12 @@ function handOver(s: GameState, q: QuestDef, onlyStoryItems: boolean): void {
   for (const step of q.steps) {
     if (step.goal.kind !== 'collect' || (onlyStoryItems && !content.item(step.goal.item).quest)) continue;
     let left = step.goal.count;
+    const pouch = Math.min(left, s.trophies[step.goal.item] ?? 0);
+    if (pouch > 0) {
+      s.trophies[step.goal.item] -= pouch;
+      if (s.trophies[step.goal.item] === 0) delete s.trophies[step.goal.item];
+      left -= pouch;
+    }
     for (const c of party(s)) {
       while (left > 0) {
         const at = c.inventory.indexOf(step.goal.item);

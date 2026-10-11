@@ -13,7 +13,6 @@ import { giveReward, lockedBecause, offerFeathers, questEvent, startQuest, useUp
 import { gameRng } from '../rules/rng';
 import { movePartyMember, type DungeonPosition } from '../rules/state';
 import type { Assist, DungeonDef, DungeonLevel, PlaceId, Special } from '../rules/types';
-import { openCharSheet } from '../ui/charSheet';
 import { openJournal } from '../ui/journal';
 import { startBattle } from './combat';
 import { hasLivingParty, partyWiped } from './flow';
@@ -761,7 +760,8 @@ class DungeonView {
         key: 'p',
         label: 'Party sheet',
         disabled: game.party.length === 0,
-        action: () => openCharSheet(game, { onClose: () => { game.refreshParty(); back(); } }),
+        // The same sheet a hero's card opens.
+        action: () => game.inspect(game.party[0].id),
       },
       { key: 'f', label: 'Formation', disabled: game.party.length === 0, action: () => this.formation() },
       { key: 'v', label: 'View map', action: () => this.bigMap() },

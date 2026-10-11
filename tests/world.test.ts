@@ -4,7 +4,7 @@ import { content } from '../src/content';
 import { rollEncounter, specialKey, turn } from '../src/rules/dungeon';
 import { Rng } from '../src/rules/rng';
 import {
-  addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, serialize, startingState,
+  addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, SAVE_VERSION, serialize, startingState,
 } from '../src/rules/state';
 import { autoAllocate, createCharacter } from '../src/rules/character';
 import { starterParty } from '../src/content/base/story';
@@ -181,12 +181,24 @@ describe('party and saves', () => {
     };
     const r = deserialize(JSON.stringify(v1));
     if (!r.ok) throw new Error(r.reason);
-    expect(r.state.version).toBe(2);
+    expect(r.state.version).toBe(SAVE_VERSION);
     expect(r.state.location).toBeNull();
     expect(r.state.flags).toEqual({});
     expect(r.state.explored).toEqual({});
     expect(r.state.gold).toBe(42);
     expect(r.state.quests['mq-roost']?.status).toBe('active');
     expect(r.notes.join(' ')).toMatch(/rebuilt/);
+  });
+
+  it('migrates version 2 saves: trophies move out of packs into the trophy pouch', () => {
+    const hero = makeHero('knight', 'Old', 'human', 'o1');
+    hero.inventory.push('rattail', 'draught', 'rattail', 'cultsigil');
+    const v2 = { ...startingState(), version: 2, roster: [hero], party: ['o1'] } as Record<string, unknown>;
+    delete v2.trophies;
+    const r = deserialize(JSON.stringify(v2));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.state.roster[0].inventory).toEqual(['draught']);
+    expect(r.state.trophies).toEqual({ rattail: 2, cultsigil: 1 });
+    expect(r.notes.join(' ')).toMatch(/3 moved to the party's trophy pouch/);
   });
 });

@@ -27,9 +27,9 @@ you choose, plus an autosave written whenever you take the stairs, rest at the i
 | Where | Keys |
 |---|---|
 | Everywhere | Click a menu entry or press the highlighted letter. `M` toggles sound. `Esc` closes panels. |
-| Party panel | Click a hero's card to see their attributes, equipment, pack and spells (works anywhere, even mid-battle). Click again or press `Esc` to close. |
+| Party panel | Click a hero's card to open their sheet: attributes, equipment, pack and spells, with buttons to put gear on or take it off, use potions, give or drop items and cast healing spells. Tabs switch hero. It works anywhere (look-only mid-battle). Click again or press `Esc` to close. |
 | Town | Walk the streets like a dungeon. Walk into a front door to go inside. `G` *Go to*: walk straight to any place you know (the Guild, Emporium, Temple, Inn, Eagle Tower, and the ways down once you have found them). `E` go down the steps or grate you're standing on, `J` journal, `C` party sheet, formation, map and saving, `Q` quit to title. |
-| Dungeon | `Up`/`W` forward, `Left`/`A` and `Right`/`D` turn, `Down`/`S` turn around, `E` use stairs, `J` journal, `C` camp: `P` party sheet (gear, potions, giving items, healing spells), `F` formation, `V` full map, `J` journal, `S` save |
+| Dungeon | `Up`/`W` forward, `Left`/`A` and `Right`/`D` turn, `Down`/`S` turn around, `E` use stairs, `J` journal, `C` camp: `P` party sheet (the same sheet a hero's card opens), `F` formation, `V` full map, `J` journal, `S` save |
 | Combat | Each living hero picks `A`ttack, `C`ast, `D`efend, `I`tem or `R`un, then the round plays out. `Space` skips the animation; the *Battle* button in the title bar sets the pace (normal, fast, instant). |
 
 - **The quest**: Aquila's twelve feathers are hidden in five dungeons, each kept by one of Malachar's servants.
@@ -46,7 +46,8 @@ you choose, plus an autosave written whenever you take the stairs, rest at the i
   The East Gate opens onto the Moulted Wood for heroes carrying eight feathers, and deep in the wood, behind the druids'
   thorn-throne, a path leads to Malachar's Featherless Spire. When you face Malachar at its summit, you won't fight alone.
 - **Side tasks**: people you meet in town and in the dungeons ask for help, and the Guild's **bounty board** offers jobs (take up to three;
-  come back to the Guild to claim the reward). Monsters drop the tails, sigils, fangs and sludge that bounties ask for.
+  come back to the Guild to claim the reward). While a bounty wants them, monsters drop the tails, sigils, fangs and sludge
+  it asks for. They go in the party's trophy pouch (listed in the Journal), not in anyone's pack.
 - **Locks and secrets**: some doors need a key, or a number of Aquila's feathers, and some gates need a wheel or lever
   worked somewhere else. Some walls are not walls at all; walk into them to find out, and a rogue in the party will feel a
   draught when one is straight ahead. Brass tubes and lifts whisk the party about (the Clocktower's lift needs switching on
@@ -130,7 +131,8 @@ Everything the player sees as *content* is data. Add or change it without touchi
   The quest marked `ending` finishes the story: completing it (by laying the last feathers on the perch) shows the victory screen.
   A quest can set a story `flag` when it is done, and start more quests with `next`, so the story can carry on after the
   ending. Old saves catch up when new content arrives: finished quests set their flags and start their follow-ons on load.
-  A monster's `drops` (item and chance) feed the `collect` goals.
+  A monster's `drops` (item and chance) feed the `collect` goals. Drops are trophies: they go in the party's trophy
+  pouch rather than a pack, and only drop while a quest or bounty is collecting them.
 - **Whole expansions**: create a `ContentPack` (see `src/rules/types.ts`) and register it in `src/content/index.ts`.
   Later packs can override earlier content by reusing ids.
 - **Story text**: `src/content/base/story.ts`.
