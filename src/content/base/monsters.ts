@@ -40,6 +40,53 @@ export const monsters: MonsterDef[] = [
     ],
     sprite: 'cultist', palette: { robe: '#2a2236', trim: '#e8c34a' },
   },
+  // The Gurgle: the Overflow
+  {
+    id: 'plaguerat', name: 'Plague Rat', plural: 'Plague Rats', hp: [2, 6, 3], def: 4, toHit: 5, speed: 4, xp: 32, gold: [0, 2],
+    attacks: [{ verb: 'bites', dice: [1, 6, 1] }], drops: [{ item: 'ratfang', chance: 0.5 }],
+    sprite: 'rat', palette: { a: '#9aa88a', b: '#76846a', c: '#4e5a4a', d: '#2e3630', e: '#e8f040' },
+  },
+  {
+    id: 'sludge', name: 'Sewer Sludge', plural: 'Sewer Sludges', hp: [4, 6, 2], def: 2, toHit: 5, speed: 1, xp: 46, gold: [0, 4],
+    attacks: [{ verb: 'engulfs', dice: [1, 8, 2] }], drops: [{ item: 'slimejar', chance: 0.5 }],
+    sprite: 'blob', palette: { a: '#b0a060', b: '#857838', c: '#5a5028', d: '#34301a' },
+  },
+  {
+    id: 'drainbat', name: 'Drain Bat', plural: 'Drain Bats', hp: [2, 4, 2], def: 7, toHit: 5, speed: 8, xp: 34, gold: [0, 1],
+    attacks: [{ verb: 'bites', dice: [1, 4, 2], ranged: true }],
+    sprite: 'bat', palette: { A: '#8aa098', B: '#6a8078', m: '#4e6460', n: '#38483e', o: '#26302a' },
+  },
+  {
+    id: 'ratfolk', name: 'Ratfolk Scrapper', plural: 'Ratfolk Scrappers', hp: [3, 6, 4], def: 6, toHit: 6, speed: 4, xp: 62, gold: [2, 8],
+    attacks: [{ verb: 'slashes', dice: [1, 8, 2] }, { verb: 'flings muck at', dice: [1, 4, 1], ranged: true }],
+    sprite: 'ratman',
+  },
+  {
+    id: 'snapjaw', name: 'Old Snapjaw', plural: 'Old Snapjaws', unique: true, hp: [18, 10, 40], def: 10, toHit: 9, speed: 3, xp: 1100, gold: [8, 10], actions: 2,
+    attacks: [{ verb: 'chomps', dice: [2, 8, 4] }, { verb: 'thrashes its tail at', dice: [1, 8, 1], all: true }],
+    sprite: 'gator',
+  },
+
+  // The Gurgle: the Rat King's Court
+  {
+    id: 'ratshaman', name: 'Ratfolk Shaman', plural: 'Ratfolk Shamans', hp: [3, 6, 6], def: 6, toHit: 7, speed: 4, xp: 88, gold: [3, 8],
+    attacks: [{ verb: 'squeaks a hex at', dice: [2, 6, 1], ranged: true }],
+    sprite: 'ratman', palette: { gear: '#6a3a9a' },
+  },
+  {
+    id: 'ratknight', name: 'Rat Knight', plural: 'Rat Knights', hp: [4, 8, 8], def: 9, toHit: 8, speed: 3, xp: 125, gold: [4, 8],
+    attacks: [{ verb: 'skewers', dice: [1, 10, 4] }],
+    sprite: 'ratman', palette: { gear: '#9aa0b0' },
+  },
+  {
+    id: 'ratking', name: 'The Rat King', plural: 'Rat Kings', unique: true, hp: [22, 10, 60], def: 11, toHit: 10, speed: 5, xp: 2000, gold: [20, 20], actions: 2,
+    attacks: [
+      { verb: 'bonks with the royal sceptre', dice: [2, 8, 5] },
+      { verb: 'squeaks a royal decree at', dice: [2, 6, 3], ranged: true },
+      { verb: 'calls a tide of rats down on', dice: [1, 10, 1], all: true },
+    ],
+    sprite: 'ratking',
+  },
   {
     id: 'malachar',
     name: 'Malachar the Plucker',

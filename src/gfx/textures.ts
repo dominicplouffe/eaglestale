@@ -1,5 +1,5 @@
 import { Rng } from '../rules/rng';
-import type { DungeonTheme } from '../rules/types';
+import type { DungeonTheme, Landmark, PlaceId } from '../rules/types';
 
 /**
  * Wall, floor and ceiling textures for the first-person view, painted in code from a level's
@@ -19,6 +19,12 @@ export interface ThemeTextures {
   wall: Texture;
   /** Decorated walls (a torch sconce, a rune...) used on some wall faces; two frames, for flicker. */
   feature: [Texture, Texture];
+  /** One wall face in this many gets the feature (a window in town is much commoner than a torch). */
+  featureEvery: number;
+  /** How many storeys tall walls are; the ones above the ground floor use `upper`. */
+  storeys: number;
+  /** Upper-storey faces (chosen per face), with the eaves on top. */
+  upper: Texture[];
   floor: Texture;
   /** Used on every other square (checkerboard), so floors can alternate. */
   floorAlt: Texture;
@@ -31,6 +37,19 @@ export interface ThemeTextures {
   stairsUpFloor: Texture;
   /** The lit hatch overhead where stairs lead up. */
   hatch: Texture;
+  /** A building's front door, with a hanging sign for the places in town. */
+  buildingDoor: Texture;
+  signs: Partial<Record<PlaceId, Texture>>;
+  /** Grand buildings: their faces from the top storey down (the ground storey has two variants). */
+  landmarks: Record<Landmark['look'], LandmarkTextures>;
+}
+
+export interface LandmarkTextures {
+  /** Storeys above the ground floor, top first; each storey has one or more faces to vary between. */
+  above: Texture[][];
+  ground: Texture;
+  /** Its front door, set in its own stone. */
+  door: Texture;
 }
 
 type RGB = [number, number, number];
@@ -265,6 +284,291 @@ function lightPool(floor: Paint): Paint {
   return p;
 }
 
+
+const TIMBER: RGB = [74, 50, 34];
+
+/** Half-timbered plaster over a stone plinth: the houses of Talonreach. */
+function timbered(p: Paint, rng: Rng, plaster: RGB): void {
+  p.rect(0, 0, TEX, 26, () => mul(plaster, 0.94 + rng.next() * 0.1));
+  for (let i = 0; i < 4; i++) blotch(p, rng, rng.int(2, 29), rng.int(3, 22), rng.int(2, 4), mul(plaster, 0.82));
+  const beam = (x: number, y: number, w: number, h: number): void =>
+    p.rect(x, y, w, h, (xx, yy) => mul(TIMBER, 0.85 + ((xx * 7 + yy * 3) % 5) * 0.06));
+  beam(0, 0, TEX, 2);
+  beam(0, 23, TEX, 3);
+  beam(0, 0, 2, 26);
+  beam(30, 0, 2, 26);
+  beam(15, 2, 2, 21);
+  // Diagonal braces, one each side of the middle post.
+  for (let i = 0; i < 12; i++) {
+    p.rect(3 + i, 21 - Math.round(i * 1.6), 2, 2, mul(TIMBER, 0.9));
+    p.rect(27 - i, 21 - Math.round(i * 1.6), 2, 2, mul(TIMBER, 0.9));
+  }
+  p.rect(0, 2, TEX, 1, mul(plaster, 0.7)); // shadow under the top beam
+  // Stone plinth.
+  for (let x = 0; x < TEX; x++) for (let y = 26; y < TEX; y++) {
+    const block = ((x + (y > 28 ? 5 : 0)) >> 3) % 2;
+    const edge = x % 8 === (y > 28 ? 3 : 0) || y === 28 || y === 31;
+    p.set(x, y, edge ? [48, 46, 52] : mul([128, 124, 120], 0.85 + block * 0.1 + rng.next() * 0.08));
+  }
+  p.rect(0, 26, TEX, 1, [150, 146, 140]);
+}
+
+/** A lit window with shutters (the second frame is a touch dimmer, like a candle guttering). */
+function cityWindow(base: Paint, frame: number, shutter: RGB): Paint {
+  const p = base.copy();
+  const glass: RGB = frame === 0 ? [255, 214, 120] : [240, 196, 104];
+  p.rect(8, 5, 16, 14, TIMBER);
+  p.rect(9, 6, 14, 12, glass, true);
+  p.rect(9, 6, 14, 2, [255, 236, 170], true);
+  p.rect(15, 6, 2, 12, mul(TIMBER, 1.1));
+  p.rect(9, 11, 14, 1, mul(TIMBER, 1.1));
+  // A shadowy figure in one pane, for life.
+  p.rect(19, 13, 2, 5, [150, 110, 60], true);
+  p.rect(19, 12, 2, 1, [130, 96, 52], true);
+  for (const x of [4, 24]) p.rect(x, 5, 4, 14, (xx, yy) => mul(shutter, 0.85 + ((xx + yy) % 3) * 0.08));
+  p.rect(7, 19, 18, 2, mul(TIMBER, 1.2)); // sill
+  p.rect(8, 21, 16, 2, [120, 70, 40]); // flower box
+  for (const [x, c] of [[9, [220, 70, 90]], [12, [240, 200, 70]], [16, [220, 70, 90]], [20, [180, 110, 220]]] as [number, RGB][]) {
+    p.set(x, 20, c);
+    p.set(x + 1, 20, [70, 140, 60]);
+  }
+  return p;
+}
+
+/** An upper storey: plaster and timber, a window (lit or shuttered) and the tiled eaves of the roof. */
+function upperStorey(base: Paint, rng: Rng, lit: boolean, shutter: RGB): Paint {
+  const p = base.copy();
+  // Clear the plinth: the upper floor is plaster all the way down.
+  p.rect(0, 26, TEX, 6, (x, y) => mul(p.get(x, 10 + (y % 6)), 1));
+  p.rect(0, 30, TEX, 2, TIMBER);
+  const roof: RGB = [112, 58, 48];
+  p.rect(0, 0, TEX, 6, (x, y) => mul(roof, (y % 3 === 2 ? 0.7 : 1) * (0.88 + (((x + (y >> 1) * 3) >> 2) % 2) * 0.14) * (0.95 + rng.next() * 0.1)));
+  for (let x = 0; x < TEX; x += 4) p.set(x, 5, mul(roof, 0.55));
+  p.rect(0, 6, TEX, 2, [40, 30, 28]); // shadow under the eaves
+  if (lit) {
+    const w = cityWindow(new Paint(), 0, shutter);
+    for (let y = 5; y < 21; y++) for (let x = 4; x < 28; x++) if (w.solid[y * TEX + x] && (x >= 8 && x < 24 ? y < 19 : true)) {
+      const c = w.get(x, y);
+      if (c[0] + c[1] + c[2] > 0) p.set(x, y + 5, c, !!w.glow[y * TEX + x]);
+    }
+  } else {
+    p.rect(11, 12, 10, 12, TIMBER);
+    p.rect(12, 13, 8, 10, (x) => mul(shutter, 0.8 + (x % 2) * 0.1));
+    p.rect(15, 13, 2, 10, mul(shutter, 0.55));
+  }
+  return p;
+}
+
+/** Rounded cobbles in uneven rows. */
+function cobbles(p: Paint, rng: Rng, stone: RGB): void {
+  p.rect(0, 0, TEX, TEX, mul(stone, 0.35));
+  for (let row = 0; row < 4; row++) {
+    const off = rng.int(0, 7);
+    for (let col = -1; col < 5; col++) {
+      const x0 = col * 8 + off;
+      const y0 = row * 8;
+      const tone = mul(stone, 0.8 + rng.next() * 0.35);
+      for (let y = y0 + 1; y < y0 + 7; y++) {
+        for (let x = x0 + 1; x < x0 + 7; x++) {
+          const dx = (x - (x0 + 3.5)) / 3.2;
+          const dy = (y - (y0 + 3.5)) / 3.2;
+          if (dx * dx + dy * dy > 1.05) continue;
+          const lit = dy < -0.3 ? 1.2 : dy > 0.4 ? 0.8 : 1;
+          p.set(((x % TEX) + TEX) % TEX, y, mul(tone, lit));
+        }
+      }
+    }
+  }
+}
+
+/** Old brick sweating green slime, with a damp tide-line near the floor. */
+function sewerWall(p: Paint, rng: Rng, brick: RGB): void {
+  blocks(p, rng, brick, 12, 6, mul(brick, 0.45), 0.3);
+  for (let i = 0; i < 6; i++) {
+    let x = rng.int(0, 31);
+    const len = rng.int(6, 20);
+    for (let y = 0; y < len; y++) {
+      p.set(x, y, mix(p.get(x, y), [90, 140, 60], 0.55 - y / (len * 2.5)));
+      if (rng.chance(0.15)) x = (x + rng.int(-1, 1) + TEX) % TEX;
+    }
+  }
+  for (let x = 0; x < TEX; x++) for (let y = 26; y < TEX; y++) p.set(x, y, mix(p.get(x, y), [40, 52, 40], 0.35 + (y - 26) * 0.08));
+  speckle(p, rng, 50, () => 0.85 + rng.next() * 0.3);
+}
+
+/** A rusty outflow pipe trickling into the channel (two frames of trickle). */
+function pipe(base: Paint, frame: number): Paint {
+  const p = base.copy();
+  const iron: RGB = [96, 70, 54];
+  for (let y = 9; y < 19; y++) for (let x = 10; x < 22; x++) {
+    const dx = (x - 15.5) / 6;
+    const dy = (y - 13.5) / 5;
+    const d = dx * dx + dy * dy;
+    if (d <= 1) p.set(x, y, d > 0.55 ? mul(iron, 1.1 - dy * 0.3) : [16, 18, 16]);
+  }
+  for (let y = 19; y < 30; y++) {
+    const wobble = (y + frame * 2) % 4 < 2 ? 0 : 1;
+    p.set(15 + wobble, y, [120, 170, 150]);
+    p.set(16 + wobble, y, [90, 140, 130]);
+  }
+  p.rect(12, 29, 8, 2, [100, 150, 140]);
+  return p;
+}
+
+/** An iron sluice gate, riveted, shut. */
+function sluiceGate(wall: Paint): Paint {
+  const p = wall.copy();
+  p.rect(4, 3, 24, 29, (x, y) => mul([92, 88, 84], 0.85 + ((x * 3 + y) % 4) * 0.05));
+  for (let x = 6; x < 26; x += 4) p.rect(x, 3, 1, 29, [60, 56, 54]);
+  for (const y of [6, 16, 27]) {
+    p.rect(4, y, 24, 2, [70, 64, 60]);
+    for (let x = 6; x < 27; x += 5) p.set(x, y, [150, 146, 140]);
+  }
+  p.rect(4, 3, 24, 1, [130, 124, 118]);
+  for (let i = 0; i < 6; i++) p.set(8 + i * 3, 30, [140, 80, 40]); // rust at the waterline
+  return p;
+}
+
+/** Tiny signboard pictures, 8x6, for the places in town. 'x' dark, 'o' gold, 'w' light. */
+const SIGNS: Record<PlaceId, string[]> = {
+  guild: ['x......x', '.x....x.', '..x..x..', '...xx...', '..x..x..', '.o....o.'],
+  shop: ['...oo...', '..o..o..', '.oooooo.', '.oowwoo.', '.oooooo.', '..oooo..'],
+  temple: ['...ww...', '.w.ww.w.', 'wwwwwwww', '..wwww..', '...ww...', '..w..w..'],
+  inn: ['.wwwww..', '.xxxxxww', '.xxxxx.w', '.xxxxxww', '.xxxxx..', '..xxx...'],
+  tower: ['......o.', '.....oo.', '....ooo.', '...ooo..', '..oo....', '.o......'],
+};
+
+function buildingDoor(wall: Paint, door: RGB, sign?: string[]): Paint {
+  const p = wall.copy();
+  // Stone step and frame, then an arched plank door with an iron ring.
+  p.rect(8, 28, 16, 4, [150, 146, 140]);
+  p.rect(8, 28, 16, 1, [180, 176, 168]);
+  p.rect(9, 11, 14, 17, TIMBER);
+  p.rect(10, 12, 12, 16, (x) => mul(door, 0.8 + (x % 3 === 0 ? -0.18 : 0.06)));
+  for (const [x, y] of [[10, 12], [11, 12], [10, 13], [21, 12], [20, 12], [21, 13]]) p.set(x, y, TIMBER);
+  p.rect(10, 17, 12, 1, [56, 50, 56]);
+  p.rect(10, 23, 12, 1, [56, 50, 56]);
+  p.rect(18, 19, 2, 2, [200, 170, 80]);
+  if (!sign) {
+    // A small lantern beside the door.
+    p.rect(24, 12, 3, 4, [255, 220, 130], true);
+    p.rect(24, 11, 3, 1, [40, 36, 40]);
+    return p;
+  }
+  // A signboard hanging from an iron bracket above the door.
+  p.rect(6, 1, 20, 1, [40, 36, 40]);
+  p.rect(8, 2, 1, 1, [40, 36, 40]);
+  p.rect(23, 2, 1, 1, [40, 36, 40]);
+  p.rect(7, 3, 18, 8, [120, 84, 48]);
+  p.rect(7, 3, 18, 1, [150, 110, 64]);
+  const ink: Record<string, RGB> = { x: [30, 24, 30], o: [240, 200, 80], w: [244, 240, 228] };
+  sign.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) if (ink[row[x]]) p.set(12 + x, 4 + y, ink[row[x]]);
+  });
+  return p;
+}
+
+
+/** Big dressed stone blocks, for the tower. */
+function ashlar(p: Paint, rng: Rng, base: RGB): void {
+  blocks(p, rng, base, 16, 8, mul(base, 0.55), 0.18);
+  speckle(p, rng, 40, () => 0.88 + rng.next() * 0.24);
+}
+
+function arrowSlit(base: Paint): Paint {
+  const p = base.copy();
+  p.rect(15, 8, 2, 16, [18, 16, 24]);
+  p.rect(13, 14, 6, 2, [18, 16, 24]);
+  return p;
+}
+
+/** The tower's top: battlements against the sky, and Aquila's golden perch glinting between them. */
+function battlements(base: Paint): Paint {
+  const p = base.copy();
+  p.clear(8, 0, 8, 9);
+  p.clear(24, 0, 8, 9);
+  p.rect(0, 9, TEX, 2, mul(p.get(4, 12), 0.7));
+  p.rect(10, 4, 4, 5, [0, 0, 0]);
+  p.clear(10, 4, 4, 5);
+  p.rect(11, 6, 2, 3, [232, 190, 80], true);
+  return p;
+}
+
+function clockFace(base: Paint, frame: number): Paint {
+  const p = base.copy();
+  for (let y = 0; y < TEX; y++) {
+    for (let x = 0; x < TEX; x++) {
+      const d = Math.hypot(x - 15.5, y - 15.5);
+      if (d < 13.5) p.set(x, y, d > 12.2 ? [176, 140, 64] : [236, 228, 204]);
+    }
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    p.set(Math.round(15.5 + Math.sin(a) * 10.5), Math.round(15.5 - Math.cos(a) * 10.5), [40, 34, 40]);
+  }
+  // The hands, which (being Professor Pinion's) disagree about the time.
+  const hand = (a: number, len: number): void => {
+    for (let r = 0; r < len; r += 0.5) p.set(Math.round(15.5 + Math.sin(a) * r), Math.round(15.5 - Math.cos(a) * r), [30, 26, 34]);
+  };
+  hand(frame ? 1.9 : 2.0, 6);
+  hand(frame ? 5.3 : 5.25, 9);
+  return p;
+}
+
+function columns(p: Paint, rng: Rng, stone: RGB): void {
+  p.rect(0, 0, TEX, TEX, () => mul(stone, 0.95 + rng.next() * 0.08));
+  for (const cx of [3, 19]) {
+    p.rect(cx, 3, 10, 26, (x) => mul(stone, 1.05 + ((x - cx) % 3 === 0 ? -0.12 : 0.04)));
+    p.rect(cx - 1, 2, 12, 2, mul(stone, 1.15));
+    p.rect(cx - 1, 28, 12, 3, mul(stone, 0.9));
+  }
+  p.rect(0, 0, TEX, 2, mul(stone, 0.8));
+  for (const cx of [14, 30]) p.rect(cx, 4, 3, 24, mul(stone, 0.6)); // shadow behind the pillars
+}
+
+/** A tall arched window of coloured glass in lead, for the temple. */
+function lancet(base: Paint): Paint {
+  const p = base.copy();
+  const glass: RGB[] = [[70, 100, 200], [200, 64, 76], [236, 190, 80], [80, 150, 110]];
+  for (let y = 5; y < 29; y++) {
+    for (let x = 10; x < 22; x++) {
+      const arch = y < 11 ? Math.hypot(x - 15.5, y - 11) : Math.abs(x - 15.5);
+      if (arch > 6) continue;
+      if (arch > 5) {
+        p.set(x, y, mul(p.get(x, y), 0.55));
+        continue;
+      }
+      const lead = x === 15 || x === 16 || y % 5 === 0;
+      p.set(x, y, lead ? [50, 46, 56] : glass[((x < 16 ? 0 : 1) + Math.floor(y / 5)) % glass.length], !lead);
+    }
+  }
+  p.rect(0, 0, TEX, 3, mul(p.get(1, 28), 1.1)); // cornice
+  return p;
+}
+
+function landmarkTextures(rng: Rng, doorWood: RGB): Record<Landmark['look'], { above: Paint[][]; ground: Paint; door: Paint }> {
+  const towerWall = new Paint();
+  ashlar(towerWall, rng, [150, 146, 150]);
+  const brick = new Paint();
+  blocks(brick, rng, [140, 64, 52], 10, 5, [70, 40, 40], 0.3);
+  const brickWin = brick.copy();
+  brickWin.rect(12, 8, 8, 14, [40, 30, 36]);
+  brickWin.rect(12, 8, 8, 2, [90, 70, 50]);
+  const marble = new Paint();
+  columns(marble, rng, [222, 216, 200]);
+  const upperMarble = marble.copy();
+  upperMarble.rect(0, 0, TEX, 3, mul(marble.get(1, 28), 1.1));
+  return {
+    tower: {
+      above: [[battlements(towerWall)], [arrowSlit(towerWall), towerWall], [towerWall, arrowSlit(towerWall)]],
+      ground: towerWall,
+      door: buildingDoor(towerWall, doorWood, SIGNS.tower),
+    },
+    clock: { above: [[clockFace(brick, 0)], [brickWin, brick], [brick]], ground: brick, door: buildingDoor(brick, [70, 60, 56]) },
+    temple: { above: [[lancet(upperMarble), upperMarble]], ground: marble, door: buildingDoor(marble, [150, 110, 60], SIGNS.temple) },
+  };
+}
+
 function build(theme: DungeonTheme): ThemeTextures {
   const style = theme.style ?? 'brick';
   const rng = new Rng(theme.wall.length * 7919 + parseInt(theme.wall.slice(1), 16));
@@ -277,7 +581,18 @@ function build(theme: DungeonTheme): ThemeTextures {
   let floorAlt: Paint | null = null;
   const ceiling = new Paint();
 
-  if (style === 'stone') {
+  if (style === 'city') {
+    timbered(wall, rng, wallC);
+    cobbles(floor, rng, floorC);
+    ceiling.rect(0, 0, TEX, TEX, ceilC);
+  } else if (style === 'sewer') {
+    sewerWall(wall, rng, wallC);
+    blocks(floor, rng, floorC, 16, 16, mul(floorC, 0.5), 0.25);
+    for (let i = 0; i < 3; i++) blotch(floor, rng, rng.int(0, 31), rng.int(0, 31), rng.int(3, 6), [70, 96, 104]);
+    speckle(floor, rng, 60, () => 0.8 + rng.next() * 0.4);
+    blocks(ceiling, rng, ceilC, 12, 6, mul(ceilC, 0.5), 0.3);
+    for (let i = 0; i < 4; i++) blotch(ceiling, rng, rng.int(0, 31), rng.int(0, 31), 3, [60, 90, 50]);
+  } else if (style === 'stone') {
     blocks(wall, rng, wallC, 16, 11, mul(wallC, 0.45), 0.3);
     for (let i = 0; i < 3; i++) crack(wall, rng, rng.int(2, 29), rng.int(0, 12), rng.int(5, 12));
     for (let i = 0; i < 3; i++) blotch(wall, rng, rng.int(0, 31), rng.pick([2, 29, 30]), rng.int(3, 5), [70, 110, 60]);
@@ -324,20 +639,39 @@ function build(theme: DungeonTheme): ThemeTextures {
     ceiling.rect(5, 0, 1, TEX, [36, 26, 18]);
   }
 
+  const shutter = parse(theme.door);
   const feature: [Paint, Paint] =
-    style === 'rune' ? [rune(wall, 0, [220, 120, 255]), rune(wall, 1, [220, 120, 255])] : [sconce(wall, 0), sconce(wall, 1)];
+    style === 'rune' ? [rune(wall, 0, [220, 120, 255]), rune(wall, 1, [220, 120, 255])]
+    : style === 'city' ? [cityWindow(wall, 0, shutter), cityWindow(wall, 1, shutter)]
+    : style === 'sewer' ? [pipe(wall, 0), pipe(wall, 1)]
+    : [sconce(wall, 0), sconce(wall, 1)];
+  const upper = style === 'city' ? [upperStorey(wall, rng, true, shutter), upperStorey(wall, rng, false, shutter)] : [];
+  const signPaint: Partial<Record<PlaceId, Paint>> = {};
+  if (style === 'city') for (const [place, art] of Object.entries(SIGNS)) signPaint[place as PlaceId] = buildingDoor(wall, parse(theme.door), art);
+  const marks = landmarkTextures(rng, parse(theme.door));
+  const signs: Partial<Record<PlaceId, Texture>> = {};
+  for (const [place, paint] of Object.entries(signPaint)) signs[place as PlaceId] = paint.bake();
+  const landmarks = Object.fromEntries(
+    Object.entries(marks).map(([look, m]) => [look, { above: m.above.map((faces) => faces.map((f) => f.bake())), ground: m.ground.bake(), door: m.door.bake() }]),
+  ) as Record<Landmark['look'], LandmarkTextures>;
 
   return {
     wall: wall.bake(),
     feature: [feature[0].bake(), feature[1].bake()],
+    featureEvery: style === 'city' ? 2 : 7,
+    storeys: style === 'city' ? 2 : 1,
+    upper: upper.map((u) => u.bake()),
     floor: floor.bake(),
     floorAlt: (floorAlt ?? floor).bake(),
     ceiling: ceiling.bake(),
     door: doorway(wall, parse(theme.door)).bake(),
-    doorShut: shutDoor(wall, parse(theme.door)).bake(),
+    doorShut: (style === 'sewer' ? sluiceGate(wall) : shutDoor(wall, parse(theme.door))).bake(),
     stairsDown: stairsDown(floor, rng).bake(),
     stairsUpFloor: lightPool(floor).bake(),
     hatch: hatch(ceiling).bake(),
+    buildingDoor: buildingDoor(wall, parse(theme.door)).bake(),
+    signs,
+    landmarks,
   };
 }
 

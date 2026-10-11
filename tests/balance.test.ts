@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Battle, type Order } from '../src/rules/combat';
-import { addXp, isAlive, knownSpells, xpForLevel } from '../src/rules/character';
+import { addXp, canUse, equipDelta, isAlive, knownSpells, xpForLevel } from '../src/rules/character';
+import type { Character } from '../src/rules/types';
 import { content } from '../src/content';
 import { Rng } from '../src/rules/rng';
 import { standardParty } from './helpers';
@@ -26,24 +27,45 @@ function orders(b: Battle): Map<string, Order> {
   }
   return o;
 }
-function partyAt(level: number) {
+/** Puts on the best of `gear` each hero can use (archers keep to bows, fighters to melee weapons). */
+function gearUp(party: Character[], gear: string[]): void {
+  for (const c of party) {
+    for (const id of gear) {
+      const item = content.item(id);
+      if (!item.slot || !canUse(c, item)) continue;
+      const worn = c.equipment[item.slot];
+      if (item.slot === 'weapon' && worn && !!content.item(worn).ranged !== !!item.ranged) continue;
+      const d = equipDelta(c, item);
+      if (d && d.dmg * 2 + d.def + d.hit > 0) c.equipment[item.slot] = id;
+    }
+  }
+}
+
+function partyAt(level: number, gear: string[] = []) {
   const p = standardParty();
+  gearUp(p, gear);
   for (const c of p) { addXp(c, xpForLevel(level, content.cls(c.classId).xpMult), new Rng(level)); c.hp = c.maxHp; c.sp = c.maxSp; }
   return p;
 }
+
+/** What the Emporium sells once `feathers` feathers are home (its own stock plus the city's stages). */
+const shopGear = (feathers: number): string[] => [
+  ...content.shop('emporium').stock,
+  ...content.cityStages.filter((st) => st.feathers <= feathers).flatMap((st) => st.stock ?? []),
+];
 type Groups = { monster: string; count: number; distance?: number }[];
-function rate(level: number, groups: Groups, n = 40): number {
+function rate(level: number, groups: Groups, gear: string[] = [], n = 40): number {
   let wins = 0;
   for (let seed = 1; seed <= n; seed++) {
     // The same groups, at the same distances, as the fight in the dungeon.
-    const b = new Battle(partyAt(level), groups.map((g) => ({ ...g })), new Rng(seed));
+    const b = new Battle(partyAt(level, gear), groups.map((g) => ({ ...g })), new Rng(seed));
     for (let r = 0; r < 60 && b.outcome === 'ongoing'; r++) b.resolveRound(orders(b));
     if (b.outcome === 'victory') wins++;
   }
   return wins / n;
 }
-const bossFight = (level: number, key: string): Groups =>
-  (content.dungeon('roost').levels[level].specials[key] as { groups: Groups }).groups;
+const bossFight = (level: number, key: string, dungeon = 'roost'): Groups =>
+  (content.dungeon(dungeon).levels[level].specials[key] as { groups: Groups }).groups;
 
 describe('boss balance', () => {
   it('the Kobold Chieftain needs a level 3 party', () => {
@@ -59,5 +81,27 @@ describe('boss balance', () => {
   it('High Priest Grackle needs a level 6 party', () => {
     expect(rate(5, bossFight(2, 'G'))).toBeLessThan(0.5);
     expect(rate(7, bossFight(2, 'G'))).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('Old Snapjaw needs a level 7-8 party', () => {
+    expect(rate(6, bossFight(0, 'J', 'gurgle'))).toBeLessThan(0.5);
+    expect(rate(8, bossFight(0, 'J', 'gurgle'))).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('the Rat King needs a level 10 party', () => {
+    expect(rate(8, bossFight(1, 'K', 'gurgle'), [], 80)).toBeLessThan(0.5);
+    expect(rate(11, bossFight(1, 'K', 'gurgle'), [], 80)).toBeGreaterThanOrEqual(0.75);
+  });
+
+  it("the Gurgle's ambushes are beatable by a party that has just arrived", () => {
+    expect(rate(7, bossFight(0, 'f', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
+    expect(rate(8, bossFight(1, 'f', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
+    expect(rate(8, bossFight(1, 'Q', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('gear from the Emporium makes a real difference', () => {
+    // Grackle stops a level 5 party in its starting kit, but not one in steel bought from the city.
+    expect(rate(5, bossFight(2, 'G'))).toBeLessThan(0.5);
+    expect(rate(5, bossFight(2, 'G'), shopGear(3))).toBeGreaterThanOrEqual(0.9);
   });
 });

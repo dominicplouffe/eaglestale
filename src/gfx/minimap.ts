@@ -36,7 +36,7 @@ export function drawMinimap(
       const t = at(x, y);
       ctx.fillStyle =
         t === '#' ? MAP_COLORS.wall
-        : t === '+' ? MAP_COLORS.door
+        : t === '+' || t === '&' ? MAP_COLORS.door
         : t === '=' ? MAP_COLORS.locked
         : t === '<' ? MAP_COLORS.stairsUp
         : t === '>' ? MAP_COLORS.stairsDown
