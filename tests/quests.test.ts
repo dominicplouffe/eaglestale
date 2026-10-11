@@ -5,6 +5,8 @@ import {
   availableBounties,
   cityStage,
   gainFeather,
+  giveItem,
+  giveReward,
   lockedBecause,
   offerFeathers,
   questEvent,
@@ -165,6 +167,17 @@ describe('quests', () => {
     expect(s.roster[0].inventory).toEqual(expect.not.arrayContaining(['test-letter']));
     expect(useUpKey(s, 'test-tail')).toBeNull();
     expect(s.roster[0].inventory).toContain('test-tail');
+  });
+
+  it('never loses a story item or a reward to a full pack, though a stray drop is left behind', () => {
+    const s = game();
+    const hero = s.roster[0];
+    hero.inventory.push(...Array(8).fill('test-tail'));
+    expect(giveItem(s, 'test-tail')).toMatch(/left behind/);
+    expect(hero.inventory).toHaveLength(8);
+    expect(giveItem(s, 'test-letter')).toMatch(/Hero crams the Test Letter in on top/);
+    expect(giveReward(s, { item: 'test-tail' })[0]).toMatch(/crams/);
+    expect(hero.inventory).toHaveLength(10);
   });
 
   it('a lock can wait on a story flag (a wheel turned somewhere else)', () => {
