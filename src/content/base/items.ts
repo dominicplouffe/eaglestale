@@ -67,6 +67,21 @@ export const items: ItemDef[] = [
   { id: 'aquilabow', name: 'Aquila Bow', desc: 'Its arrows fly true, like a diving eagle.', price: 3600, slot: 'weapon', proficiency: 'bow', damage: [2, 8, 4], hit: 3, ranged: true },
   { id: 'archrobe', name: 'Archmage Robe', desc: 'Woven with warding runes that glow when danger is near.', price: 2400, slot: 'body', proficiency: 'robe', ac: 5 },
   { id: 'phoenixdraught', name: 'Phoenix Draught', desc: 'Restores 150 HP. Warm as sunrise.', price: 450, use: { kind: 'heal', amount: 150 } },
+  { id: 'thornmail', name: 'Thornmail', desc: 'Mail woven through with living bramble. Hugging is discouraged.', price: 2800, slot: 'body', proficiency: 'medium', ac: 8 },
+  { id: 'leafcloak', name: 'Leaf-Shadow Cloak', desc: 'Light as a leaf, and hard to see in any wood.', price: 2600, slot: 'body', proficiency: 'light', ac: 6 },
+  { id: 'huntersbow', name: "Hunter's Recurve", desc: 'A bow of horn and yew. It never seems to miss a deer, or a wolf.', price: 3400, slot: 'weapon', proficiency: 'bow', damage: [2, 8, 6], hit: 3, ranged: true },
+  { id: 'oakstaff', name: 'Oaken Staff', desc: 'Cut from a fallen oak, with its blessing.', price: 2600, slot: 'weapon', proficiency: 'staff', damage: [2, 10, 4], hit: 3 },
+  { id: 'sunelixir', name: 'Sun Elixir', desc: 'Restores 250 HP. Like drinking a summer afternoon.', price: 800, use: { kind: 'heal', amount: 250 } },
+  { id: 'stormblade', name: 'Storm Blade', desc: 'Forged in a thunderstorm. It crackles when drawn.', price: 5200, slot: 'weapon', proficiency: 'sword', damage: [3, 8, 4], hit: 3 },
+  { id: 'stormhammer', name: 'Storm Hammer', desc: 'Every blow is a small thunderclap.', price: 5200, slot: 'weapon', proficiency: 'mace', damage: [3, 8, 5], hit: 2 },
+  { id: 'aegisshield', name: 'Aegis Shield', desc: 'A round shield with an eagle that seems to watch your back.', price: 2600, slot: 'shield', proficiency: 'shield', ac: 5 },
+  { id: 'eaglecrown', name: 'Eagle Crown Helm', desc: 'A great helm crested with golden feathers.', price: 2400, slot: 'head', proficiency: 'heavy', ac: 5 },
+  { id: 'magecirclet', name: "Mage's Circlet", desc: 'A silver circlet that keeps the thoughts clear and the blows away.', price: 1800, slot: 'head', proficiency: 'robe', ac: 3 },
+  { id: 'manacrystal', name: 'Mana Crystal', desc: 'Restores 40 SP.', price: 700, use: { kind: 'restoreSp', amount: 40 } },
+  { id: 'starplate', name: 'Starsteel Plate', desc: 'Plate forged from a fallen star. Very shiny, very heavy, very safe.', price: 7000, slot: 'body', proficiency: 'heavy', ac: 11 },
+  { id: 'moonrobe', name: 'Moonweave Robe', desc: 'Silver thread spun by moonlight. Spells slide off it.', price: 4800, slot: 'body', proficiency: 'robe', ac: 7 },
+  { id: 'nightcloak', name: 'Nightingale Cloak', desc: 'Feather-light and dark as a summer night.', price: 4200, slot: 'body', proficiency: 'light', ac: 7 },
+  { id: 'heartcharm', name: 'Heart of Talonreach', desc: 'A charm made from the first stone of the Eagle Tower.', price: 5000, slot: 'trinket', ac: 5 },
 
   // Bounty goods dropped by monsters (the Guild pays for these)
   { id: 'rattail', name: 'Rat Tail', desc: 'The Guild pays for these. Nobody asks why.', price: 2 },
@@ -76,6 +91,8 @@ export const items: ItemDef[] = [
   { id: 'slimejar', name: 'Jar of Sludge', desc: 'For the alchemists. They say it is "promising". It is gurgling.', price: 6 },
   { id: 'mainspring', name: 'Mainspring', desc: 'A tightly coiled spring from a tin soldier. Boing.', price: 8 },
   { id: 'brassgear', name: 'Brass Gear', desc: 'A good brass gear. The brassworkers of Market Street will want it.', price: 10 },
+  { id: 'wisplight', name: 'Wisp-Light', desc: 'A little captured glow in a jar. The lamplighters pay well.', price: 15 },
+  { id: 'hexshard', name: 'Hex Shard', desc: 'A shard of black glass humming with a curse. The Temple wants them broken.', price: 20 },
 
   // Keys and story items (can't be sold or dropped)
   { id: 'cryptkey', name: 'Ossuary Key', desc: 'A bone-handled key carved with an eagle. Opens the Ossuary in the Crypts.', price: 0, quest: true },
@@ -86,6 +103,8 @@ export const items: ItemDef[] = [
   { id: 'brasskey', name: 'Storeroom Key', desc: "A brass key on an apprentice's lanyard. Opens the Workshop storeroom.", price: 0, quest: true },
   { id: 'windingkey', name: "Tock's Winding Key", desc: 'A big silver key for winding up a clockwork butler.', price: 0, quest: true },
   { id: 'notebook', name: "Pinion's Notebook", desc: 'Full of diagrams of eagles, and a list headed THINGS M. OWES ME.', price: 0, quest: true },
+  { id: 'grouseegg', name: 'Grouse Egg', desc: "One of Ma Grouse's eggs, speckled and warm.", price: 0, quest: true },
+  { id: 'oakseed', name: 'Seed of the First Oak', desc: 'An acorn the size of a fist, warm as if it were alive. It is.', price: 0, quest: true },
   { id: 'pinionletter', name: "Professor Pinion's Letter", desc: 'Clockwork-stamped paper: "Will buy feathers by the pound. No questions asked. - Prof. P., The Clocktower."', price: 0, quest: true },
 
   // Dungeon treasure (not sold in shops)
@@ -103,5 +122,14 @@ export const items: ItemDef[] = [
   { id: 'chronostaff', name: 'Staff of Hours', desc: 'Its crystal shows the time, and sometimes the future.', price: 2600, slot: 'weapon', proficiency: 'staff', damage: [2, 8, 4], hit: 3 },
   { id: 'timepiece', name: "Pinion's Pocket Watch", desc: 'Always ten minutes fast, so you\'re never late for a fight.', price: 1600, slot: 'trinket', ac: 3 },
   { id: 'pinionsgoggles', name: "Pinion's Goggles", desc: 'Spare goggles from Penny. Everything looks sharper (and slightly blue).', price: 1200, slot: 'head', ac: 3 },
+  { id: 'wolfcloak', name: 'Alpha Wolf Cloak', desc: 'The pelt of the Fringe\'s alpha wolf, thorns and all.', price: 3000, slot: 'body', proficiency: 'light', ac: 7 },
+  { id: 'songbow', name: 'The Nightingale Bow', desc: 'From the old royal aviary. Its string sings a different note for each arrow.', price: 4800, slot: 'weapon', proficiency: 'bow', damage: [2, 10, 6], hit: 3, ranged: true },
+  { id: 'songcharm', name: 'Songbird Charm', desc: 'From the ghost of the aviary keeper. It hums when danger is near.', price: 3600, slot: 'trinket', ac: 5 },
+  { id: 'thornblade', name: 'Thornblade', desc: 'A sword grown, not forged, from the Thorn Grove\'s oldest bramble.', price: 5600, slot: 'weapon', proficiency: 'sword', damage: [3, 8, 6], hit: 3 },
+  { id: 'firstoakstaff', name: 'Staff of the First Oak', desc: "Hazel's gift: living wood that sprouts a leaf whenever a spell is cast.", price: 5000, slot: 'weapon', proficiency: 'staff', damage: [3, 8, 6], hit: 3 },
+  { id: 'shadowrobe', name: "Malachar's Spare Robe", desc: 'Purple, plucked-looking, and annoyingly good protection.', price: 6000, slot: 'body', proficiency: 'robe', ac: 8 },
+  { id: 'stormhelm', name: 'Storm Helm', desc: 'Lightning crackles along its crest. Your hair will never lie flat again.', price: 4800, slot: 'head', proficiency: 'heavy', ac: 6 },
+  { id: 'rocmantle', name: 'Roc-Feather Mantle', desc: 'A mantle of the Storm Roc\'s dark feathers. Arrows curve away from it.', price: 6400, slot: 'trinket', ac: 6 },
+  { id: 'falconerglove', name: "Falconer's Gauntlets", desc: "Wren's gift: leather gauntlets that an eagle can perch on.", price: 3200, slot: 'hands', ac: 4 },
   { id: 'catseye', name: "Cat's-Eye Charm", desc: 'From Mother Plover. Its green stone seems to watch your back.', price: 600, slot: 'trinket', ac: 2 },
 ];

@@ -95,12 +95,19 @@ describe('content integrity', () => {
     const cities = [...content.dungeons.values()].filter((d) => d.city);
     expect(cities).toHaveLength(1);
     const city = cities[0].levels[0];
-    // Steps and grates (portals), or front doors that lead into a dungeon (a tower, say).
-    const ways = Object.values(city.specials).filter((s) => s.kind === 'portal' || (s.kind === 'building' && s.dungeon));
-    for (const d of content.dungeons.values()) {
-      if (d.city) continue;
-      expect(ways.some((w) => (w.kind === 'portal' || w.kind === 'building') && w.dungeon === d.id), `a way into ${d.id}`).toBe(true);
+    // Ways in are steps and grates (portals) or front doors with a dungeon behind them, in town or
+    // inside another dungeon (a path from the Wood to the Spire, say).
+    const reached = new Set([cities[0].id]);
+    for (let pass = 0; pass < 10; pass++) {
+      for (const id of [...reached]) {
+        for (const level of content.dungeon(id).levels) {
+          for (const s of Object.values(level.specials)) {
+            if ((s.kind === 'portal' || s.kind === 'building') && s.dungeon) reached.add(s.dungeon);
+          }
+        }
+      }
     }
+    for (const d of content.dungeons.values()) expect(reached.has(d.id), `a way into ${d.id}`).toBe(true);
     // Building doors sit in walls, with a street square in front of them.
     city.grid.forEach((row, y) => {
       [...row].forEach((t, x) => {
@@ -146,44 +153,47 @@ describe('content integrity', () => {
 
   it('every level can be finished: keys, feathers and wheels are found before the doors that need them', () => {
     const DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-    let feathersSoFar = new Set<string>();
+    const feathers = new Set<string>();
     for (const dungeon of content.dungeons.values()) {
-      dungeon.levels.forEach((level, li) => {
-        const items = new Set<string>();
-        const flags = new Set<string>();
-        const featherCount = (): number => feathersSoFar.size;
-        // Walk outward from the start; a lock is passable once its key, feathers and flag have been found.
-        let reached = new Set<string>();
-        for (let pass = 0; pass < 20; pass++) {
-          const before = reached.size;
-          reached = new Set([`${level.start.x},${level.start.y}`]);
+      const items = new Set<string>();
+      const flags = new Set<string>();
+      const reachedBy = new Map<number, Set<string>>();
+      // Walk every level outward from its start, again and again, so a key or feather found on a later
+      // level can open a door on an earlier one (going back is allowed); stop when nothing changes.
+      for (let pass = 0; pass < 20; pass++) {
+        let grew = false;
+        dungeon.levels.forEach((level, li) => {
+          const reached = new Set([`${level.start.x},${level.start.y}`]);
           const queue = [[level.start.x, level.start.y]];
           for (let i = 0; i < queue.length; i++) {
             const [x, y] = queue[i];
             const s = level.specials[tileAt(level, x, y)];
             if (s?.kind === 'treasure' && s.item) items.add(s.item);
-            if (s?.kind === 'treasure' && s.feather) feathersSoFar.add(s.feather);
+            if (s?.kind === 'treasure' && s.feather) feathers.add(s.feather);
             if (s?.kind === 'fight' && s.reward?.item) items.add(s.reward.item);
-            if (s?.kind === 'fight' && s.reward?.feather) feathersSoFar.add(s.reward.feather);
+            if (s?.kind === 'fight' && s.reward?.feather) feathers.add(s.reward.feather);
             if (s && 'flag' in s && s.kind !== 'lock' && s.flag) flags.add(s.flag);
             for (const [dx, dy] of DIRS4) {
               const nx = x + dx;
               const ny = y + dy;
               const t = tileAt(level, nx, ny);
               const sp = level.specials[t];
-              const shut = sp?.kind === 'lock' && ((sp.key && !items.has(sp.key)) || (sp.feathers ?? 0) > featherCount() || (sp.flag && !flags.has(sp.flag)));
+              const shut = sp?.kind === 'lock' && ((sp.key && !items.has(sp.key)) || (sp.feathers ?? 0) > feathers.size || (sp.flag && !flags.has(sp.flag)));
               if (canStand(level, t) && !shut && !reached.has(`${nx},${ny}`)) {
                 reached.add(`${nx},${ny}`);
                 queue.push([nx, ny]);
               }
             }
           }
-          if (reached.size === before) break;
-        }
+          if (reached.size !== (reachedBy.get(li)?.size ?? 0)) grew = true;
+          reachedBy.set(li, reached);
+        });
+        if (!grew) break;
+      }
+      dungeon.levels.forEach((level, li) => {
         const walkable = level.grid.join('').split('').filter((t) => canStand(level, t)).length;
-        expect(reached.size, `${dungeon.id} level ${li}: every square reachable`).toBe(walkable);
+        expect(reachedBy.get(li)?.size, `${dungeon.id} level ${li}: every square reachable`).toBe(walkable);
       });
-      feathersSoFar = new Set(feathersSoFar);
     }
   });
 });

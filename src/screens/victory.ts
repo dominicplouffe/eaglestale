@@ -2,8 +2,8 @@ import { story } from '../content/base/story';
 import type { Game, Screen } from '../engine/game';
 import { drawText } from '../gfx/font';
 import { drawTitleScene } from '../gfx/scenes';
-import { dungeonScreen } from './dungeon';
 import { titleScreen } from './title';
+import { townScreen } from './town';
 
 export const victoryScreen: Screen = {
   enter(game: Game) {
@@ -20,7 +20,7 @@ export const victoryScreen: Screen = {
     });
     shell.setMenu(
       [
-        { key: 'c', label: 'Keep exploring the Roost', action: () => game.go(dungeonScreen) },
+        { key: 'c', label: 'Back to Talonreach', action: () => game.go(townScreen) },
         { key: 't', label: 'Return to title', action: () => game.go(titleScreen) },
       ],
       'The End... or is it?',

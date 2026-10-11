@@ -12,7 +12,7 @@ import {
 } from './character';
 import { gameRng, type Rng } from './rng';
 import { applyHeal, canCast, rollSpellDice } from './spells';
-import type { Character, MonsterAttack, MonsterDef } from './types';
+import type { Assist, Character, MonsterAttack, MonsterDef } from './types';
 
 export type SfxName =
   | 'hit'
@@ -32,6 +32,7 @@ export type BattleFx =
   | { kind: 'cast'; spell: string; groups: number[] }
   | { kind: 'heal'; hero: string; amount: number }
   | { kind: 'ward'; spell: string }
+  | { kind: 'assist'; art?: string }
   | { kind: 'partyHit'; group: number; hero: string; amount: number }
   | { kind: 'monsterMiss'; group: number };
 
@@ -86,11 +87,14 @@ export class Battle {
   /** Monsters defeated, by monster id (for quests). */
   readonly kills: Record<string, number> = {};
   private partyBuff = { amount: 0, turns: 0 };
+  private assisted = false;
 
   constructor(
     readonly party: Character[],
     specs: EncounterSpec[],
     private readonly rng: Rng = gameRng,
+    /** Help that arrives at the start of a round (Aquila, in the last fight). */
+    private readonly assist?: Assist,
   ) {
     this.groups = specs.map((s) => {
       const def = content.monster(s.monster);
@@ -139,6 +143,11 @@ export class Battle {
   /** Resolves one full round. Characters without an order defend. */
   resolveRound(orders: Map<string, Order>): BattleEvent[] {
     const events: BattleEvent[] = [];
+    if (this.assist && !this.assisted && this.round >= this.assist.round) {
+      this.callAssist(this.assist, events);
+      this.checkEnd(events);
+      if (this.outcome !== 'ongoing') return events;
+    }
     const defending = new Set<string>();
     const actors: { init: number; act: () => void }[] = [];
 
@@ -168,6 +177,33 @@ export class Battle {
     }
     if (this.outcome === 'ongoing') this.endRound(events);
     return events;
+  }
+
+  /** An ally swoops in: every enemy is struck, and the party is healed (and the fallen raised). */
+  private callAssist(a: Assist, events: BattleEvent[]): void {
+    this.assisted = true;
+    events.push({ text: a.text, sfx: 'levelup', fx: { kind: 'assist', art: a.art } });
+    this.groups.forEach((group, gi) => {
+      for (const member of this.liveMembers(group)) {
+        const damage = Math.max(1, this.rng.roll(a.dice));
+        events.push({
+          text: `${a.name} strikes ${withArticle(group.def)} for ${damage}.`,
+          sfx: 'hit',
+          fx: { kind: 'hit', group: gi, target: member, amount: damage },
+        });
+        this.damageMonster(group, member, damage, events);
+      }
+    });
+    if (!a.heal) return;
+    for (const c of this.party) {
+      const fallen = !isAlive(c);
+      if (fallen) c.hp = 0;
+      const healed = applyHeal(c, Math.max(1, this.rng.roll(a.heal)));
+      events.push({
+        text: fallen ? `${c.name} rises again with ${healed} HP!` : `${c.name} recovers ${healed} HP.`,
+        fx: { kind: 'heal', hero: c.id, amount: healed },
+      });
+    }
   }
 
   private endRound(events: BattleEvent[]): void {

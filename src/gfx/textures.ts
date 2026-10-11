@@ -30,6 +30,8 @@ export interface ThemeTextures {
   storeys: number;
   /** Upper-storey faces (chosen per face), with the eaves on top. */
   upper: Texture[];
+  /** The topmost storey's faces, if it differs (a ragged canopy against the sky, drawn see-through). */
+  top: Texture[];
   floor: Texture;
   /** Used on every other square (checkerboard), so floors can alternate. */
   floorAlt: Texture;
@@ -674,6 +676,103 @@ function vaultDoor(wall: Paint, brass: RGB): Paint {
   return p;
 }
 
+
+/** Tree trunks rising out of ferns, with deep shadow between them. */
+function forestFloorStorey(p: Paint, rng: Rng, bark: RGB, leaf: RGB): void {
+  p.rect(0, 0, TEX, TEX, (x, y) => mul([18, 26, 20], 0.8 + ((x * 3 + y) % 5) * 0.05));
+  for (const [x0, w] of [[1, 7], [13, 6], [23, 8]] as [number, number][]) {
+    for (let x = x0; x < x0 + w; x++) {
+      for (let y = 0; y < TEX; y++) {
+        const edge = x === x0 || x === x0 + w - 1;
+        const groove = (x - x0 + Math.floor(y / 5)) % 3 === 0;
+        p.set(x, y, mul(bark, edge ? 0.5 : groove ? 0.7 : 0.95 + rng.next() * 0.1));
+      }
+    }
+  }
+  // Ferns and brambles at the foot.
+  for (let i = 0; i < 70; i++) {
+    const x = rng.int(0, 31);
+    const y = rng.int(20, 31);
+    const h = rng.int(2, 6);
+    for (let k = 0; k < h; k++) p.set(x + (k % 2), y - k, mul(leaf, 0.6 + rng.next() * 0.6));
+  }
+  // Low leaves at the top, where the canopy begins.
+  for (let i = 0; i < 40; i++) blotch(p, rng, rng.int(0, 31), rng.int(0, 4), 2, mul(leaf, 0.8 + rng.next() * 0.3));
+}
+
+/** A dense canopy of leaves (and, this being the Moulted Wood, a few pale feathers caught in it). */
+function canopy(p: Paint, rng: Rng, leaf: RGB, ragged: boolean): void {
+  p.rect(0, 0, TEX, TEX, () => mul(leaf, 0.45 + rng.next() * 0.15));
+  for (let i = 0; i < 120; i++) blotch(p, rng, rng.int(0, 31), rng.int(0, 31), rng.int(1, 3), mul(leaf, 0.65 + rng.next() * 0.6));
+  for (let i = 0; i < 5; i++) {
+    const x = rng.int(2, 29);
+    const y = rng.int(2, 29);
+    p.set(x, y, [236, 232, 220]);
+    p.set(x + 1, y + 1, [200, 196, 190]);
+  }
+  if (!ragged) return;
+  // A lumpy top edge where the sky shows through.
+  for (let x = 0; x < TEX; x++) {
+    const h = 6 + Math.round(4 * Math.sin(x * 0.7) + 3 * Math.sin(x * 1.9 + 1) + rng.next() * 2);
+    p.clear(x, 0, 1, Math.max(0, h));
+  }
+}
+
+/** A trunk with a hanging nest and glowing toadstools (two frames: the glow pulses). */
+function forestFeature(base: Paint, frame: number): Paint {
+  const p = base.copy();
+  // A nest of twigs in the fork of the middle trunk.
+  p.rect(11, 9, 10, 4, [96, 70, 44]);
+  p.rect(12, 8, 8, 1, [120, 90, 56]);
+  for (const x of [13, 16, 18]) p.set(x, 8, [236, 232, 220]);
+  const glow: RGB = frame === 0 ? [180, 250, 200] : [140, 220, 170];
+  for (const [x, y] of [[4, 27], [6, 26], [9, 28], [24, 27], [27, 28]]) {
+    p.rect(x, y, 2, 1, glow, true);
+    p.set(x, y + 1, [200, 190, 170]);
+  }
+  return p;
+}
+
+/** A wall of thorns: the druids' idea of a locked door. */
+function thornWall(base: Paint, rng: Rng): Paint {
+  const p = base.copy();
+  p.rect(0, 4, TEX, 28, () => mul([40, 34, 28], 0.8 + rng.next() * 0.3));
+  for (let i = 0; i < 28; i++) {
+    let x = rng.int(0, 31);
+    let y = rng.int(4, 31);
+    const dx = rng.chance(0.5) ? 1 : -1;
+    for (let k = 0; k < 10; k++) {
+      p.set(x, y, [96, 70, 50]);
+      if (k % 3 === 0) p.set(x, y - 1, [200, 190, 160]);
+      x = (x + dx + TEX) % TEX;
+      y = Math.min(31, Math.max(4, y + rng.int(-1, 1)));
+    }
+  }
+  for (let i = 0; i < 10; i++) p.set(rng.int(1, 30), rng.int(6, 30), [190, 40, 60]);
+  return p;
+}
+
+function canopyFace(rng: Rng, leaf: RGB, ragged: boolean): Paint {
+  const p = new Paint();
+  canopy(p, rng, leaf, ragged);
+  return p;
+}
+
+/** Grass and earth strewn with leaves and the odd fallen feather. */
+function forestGround(p: Paint, rng: Rng, ground: RGB): void {
+  p.rect(0, 0, TEX, TEX, () => mul(ground, 0.8 + rng.next() * 0.3));
+  for (let i = 0; i < 60; i++) {
+    const x = rng.int(0, 31);
+    const y = rng.int(0, 31);
+    p.set(x, y, rng.chance(0.5) ? [150, 96, 40] : [110, 120, 50]);
+  }
+  for (let i = 0; i < 4; i++) {
+    const x = rng.int(2, 28);
+    const y = rng.int(2, 29);
+    p.rect(x, y, 3, 1, [230, 226, 214]);
+  }
+}
+
 function build(theme: DungeonTheme): ThemeTextures {
   const style = theme.style ?? 'brick';
   const rng = new Rng(theme.wall.length * 7919 + parseInt(theme.wall.slice(1), 16));
@@ -686,7 +785,11 @@ function build(theme: DungeonTheme): ThemeTextures {
   let floorAlt: Paint | null = null;
   const ceiling = new Paint();
 
-  if (style === 'clockwork') {
+  if (style === 'forest') {
+    forestFloorStorey(wall, rng, wallC, parse(theme.door));
+    forestGround(floor, rng, floorC);
+    ceiling.rect(0, 0, TEX, TEX, ceilC);
+  } else if (style === 'clockwork') {
     clockworkWall(wall, rng, wallC, parse(theme.door));
     parquet(floor, rng, floorC);
     pipeCeiling(ceiling, ceilC);
@@ -754,8 +857,14 @@ function build(theme: DungeonTheme): ThemeTextures {
     : style === 'city' ? [cityWindow(wall, 0, shutter), cityWindow(wall, 1, shutter)]
     : style === 'sewer' ? [pipe(wall, 0), pipe(wall, 1)]
     : style === 'clockwork' ? [wallGear(wall, 0, wallC), wallGear(wall, 1, wallC)]
+    : style === 'forest' ? [forestFeature(wall, 0), forestFeature(wall, 1)]
     : [sconce(wall, 0), sconce(wall, 1)];
-  const upper = style === 'city' ? [upperStorey(wall, rng, true, shutter), upperStorey(wall, rng, false, shutter)] : [];
+  const leaves = parse(theme.door);
+  const upper =
+    style === 'city' ? [upperStorey(wall, rng, true, shutter), upperStorey(wall, rng, false, shutter)]
+    : style === 'forest' ? [canopyFace(rng, leaves, false), canopyFace(rng, leaves, false)]
+    : [];
+  const top = style === 'forest' ? [canopyFace(rng, leaves, true), canopyFace(rng, leaves, true)] : [];
   const signPaint: Partial<Record<PlaceId, Paint>> = {};
   if (style === 'city') for (const [place, art] of Object.entries(SIGNS)) signPaint[place as PlaceId] = buildingDoor(wall, parse(theme.door), art);
   const marks = landmarkTextures(rng, parse(theme.door));
@@ -768,14 +877,18 @@ function build(theme: DungeonTheme): ThemeTextures {
   return {
     wall: wall.bake(),
     feature: [feature[0].bake(), feature[1].bake()],
-    featureEvery: style === 'city' ? 2 : style === 'clockwork' ? 4 : 7,
-    storeys: style === 'city' ? 2 : 1,
+    featureEvery: style === 'city' ? 2 : style === 'clockwork' ? 4 : style === 'forest' ? 5 : 7,
+    storeys: style === 'city' ? 2 : style === 'forest' ? 3 : 1,
     upper: upper.map((u) => u.bake()),
+    top: top.map((u) => u.bake()),
     floor: floor.bake(),
     floorAlt: (floorAlt ?? floor).bake(),
     ceiling: ceiling.bake(),
     door: doorway(wall, parse(theme.door)).bake(),
-    doorShut: (style === 'sewer' ? sluiceGate(wall) : style === 'clockwork' ? vaultDoor(wall, wallC) : shutDoor(wall, parse(theme.door))).bake(),
+    doorShut: (style === 'sewer' ? sluiceGate(wall)
+      : style === 'clockwork' ? vaultDoor(wall, wallC)
+      : style === 'forest' ? thornWall(wall, rng)
+      : shutDoor(wall, parse(theme.door))).bake(),
     stairsDown: stairsDown(floor, rng).bake(),
     stairsUpFloor: lightPool(floor).bake(),
     hatch: hatch(ceiling).bake(),

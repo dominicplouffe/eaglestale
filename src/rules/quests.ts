@@ -95,6 +95,7 @@ function advance(s: GameState, id: string): string[] {
 function finish(s: GameState, id: string): string[] {
   const q = content.quest(id);
   s.quests[id].status = 'done';
+  if (q.ending) s.won = true;
   // Bounties take what was collected; other quests take only story items (the rest are the party's to keep).
   handOver(s, q, q.source !== 'board');
   const out = [q.done, ...giveReward(s, q.reward)];

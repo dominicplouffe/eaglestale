@@ -11,10 +11,10 @@ export const story = {
   ],
   townHint: "You stand in Feather Square, facing the Guild. Walk in (Up arrow, twice) to recruit heroes. G lists the places you know in town, and your Journal (J) keeps track of the quest.",
   victory: [
-    "Malachar crumples with a long, dignified squawk. From his tattered robes tumbles Aquila's Golden Pinion, glowing like a small sunrise.",
-    'You carry it up through the crypts and cellars. As you step into Talonreach the clouds crack open and a great shadow sweeps over the rooftops. Aquila is home.',
-    'The bakeries reopen. The pillows forgive everyone. You are carried through the streets by a crowd smelling faintly of warm bread.',
-    "Congratulations, heroes. Eagle's Tale is complete... but the Roost may yet hold more secrets. Keep playing to find them.",
+    'You climb the Eagle Tower one last time and lay the final feathers beside the other ten. For a long moment, nothing happens.',
+    'Then all twelve blaze gold at once. The clouds over Talonreach split from end to end, a great shadow sweeps across the rooftops, and AQUILA, the Great Eagle, settles on her perch with every feather exactly where it belongs.',
+    'The bakeries reopen for good. The pillows forgive everyone. Malachar the Plucker, last seen being carried off by a flock of very indignant pigeons, has not been heard from since.',
+    "Congratulations, heroes. Eagle's Tale is complete... but the Guild still has bounties, and the tower keepers say something stirs in Aquila's old nest. Keep playing to find out.",
   ],
 };
 
