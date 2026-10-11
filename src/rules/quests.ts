@@ -80,7 +80,7 @@ export function collectLoot(s: GameState, loot: string[]): string[] {
   }
   for (const [itemId, n] of got) {
     const name = content.item(itemId).name;
-    out.push(`Into the trophy pouch: ${n > 1 ? `${n} x ` : ''}${name} (${itemCount(s, itemId)} now).`);
+    out.push(`Into the trophy pouch: ${n > 1 ? `${n} x ` : ''}${name}.`);
   }
   return out;
 }
@@ -94,11 +94,24 @@ export function goalProgress(s: GameState, goal: QuestGoal, count: number): { ha
       return { have: Math.min(itemCount(s, goal.item), goal.count), need: goal.count };
     case 'flag':
       return { have: s.story[goal.flag] ? 1 : 0, need: 1 };
+    case 'flags':
+      return { have: goal.flags.filter((f) => s.story[f]).length, need: goal.flags.length };
     case 'feathers':
       return { have: Math.min(s.feathers.length, goal.count), need: goal.count };
     case 'offered':
       return { have: Math.min(s.offered, goal.count), need: goal.count };
   }
+}
+
+/** How far along a counted goal is, in words: "1 of 3 freed, 2 to go", or "all 3 freed". */
+export function progressText(goal: QuestGoal, have: number, need: number): string {
+  const done =
+    goal.kind === 'kill' ? 'defeated'
+    : goal.kind === 'collect' ? 'collected'
+    : goal.kind === 'flags' ? goal.verb
+    : goal.kind === 'offered' ? 'returned'
+    : 'found';
+  return have >= need ? `all ${need} ${done}` : `${have} of ${need} ${done}, ${need - have} to go`;
 }
 
 const met = (s: GameState, goal: QuestGoal, count: number): boolean => {
@@ -199,8 +212,40 @@ export function questEvent(s: GameState, ev: QuestEvent): string[] {
     const p = s.quests[q.id];
     if (p.status !== 'active') continue;
     const goal = q.steps[p.step]?.goal;
-    if (ev.kind === 'kill' && goal?.kind === 'kill' && goal.monster === ev.monster) p.count += ev.count;
+    // Did this move a counted goal along? (For a collect goal, `count` remembers what was last reported.)
+    let moved = false;
+    if (goal?.kind === 'kill' && ev.kind === 'kill' && goal.monster === ev.monster) {
+      p.count += ev.count;
+      moved = true;
+    } else if (goal?.kind === 'flags' && ev.kind === 'flag' && goal.flags.includes(ev.flag)) {
+      moved = true;
+    } else if (goal?.kind === 'collect') {
+      const have = itemCount(s, goal.item);
+      moved = have > p.count;
+      p.count = have;
+    }
+    const step = p.step;
     out.push(...advance(s, q.id));
+    // Say how far along it is, unless that finished the step (advance has said what's next).
+    if (moved && goal && p.status === 'active' && p.step === step) {
+      const { have, need } = goalProgress(s, goal, p.count);
+      if (need > 1) out.push(`${q.name}: ${progressText(goal, have, need)}.`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Saves from before a quest was reshaped (three steps folded into one counted goal, say) can be
+ * past its last step: put the quest back on its first step, and let it move on from there.
+ */
+export function repairQuests(s: GameState): string[] {
+  const out: string[] = [];
+  for (const [id, p] of Object.entries(s.quests)) {
+    if (p.status !== 'active' || !content.quests.has(id) || p.step < content.quest(id).steps.length) continue;
+    p.step = 0;
+    p.count = 0;
+    out.push(...advance(s, id));
   }
   return out;
 }

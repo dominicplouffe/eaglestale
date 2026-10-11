@@ -1,7 +1,7 @@
 import { content } from '../content/registry';
 import type { Game } from '../engine/game';
 import { el } from '../engine/shell';
-import { activeQuests, cityStage, goalProgress } from '../rules/quests';
+import { activeQuests, cityStage, goalProgress, progressText } from '../rules/quests';
 import type { QuestDef } from '../rules/types';
 
 /**
@@ -28,7 +28,7 @@ export function openJournal(game: Game, onClose: () => void): void {
     if (p.status === 'ready') detail = 'Done! Report to the Guild for your reward.';
     else if (step) {
       const { have, need } = goalProgress(s, step.goal, p.count);
-      if (need > 1) detail += ` (${have}/${need})`;
+      if (need > 1) detail += ` (${progressText(step.goal, have, need)})`;
     }
     return el('div', { class: 'quest' }, el('div', { class: 'gold', text: q.name }), el('div', { text: detail }));
   };

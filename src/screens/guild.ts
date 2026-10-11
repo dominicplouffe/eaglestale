@@ -4,6 +4,7 @@ import type { Game, Screen } from '../engine/game';
 import { el } from '../engine/shell';
 import { drawPlace } from '../gfx/scenes';
 import {
+  MAX_INVENTORY,
   MAX_PARTY,
   MAX_STAT,
   autoAllocate,
@@ -18,9 +19,12 @@ import {
   deleteCharacter,
   movePartyMember,
   removeFromParty,
+  storeItem,
+  takeFromStash,
 } from '../rules/state';
-import { MAX_BOUNTIES, availableBounties, goalProgress, takeBounty, takenBounties, turnIn } from '../rules/quests';
-import { ATTRS, ATTR_NAMES, type Reward, type Stats } from '../rules/types';
+import { MAX_BOUNTIES, availableBounties, goalProgress, progressText, takeBounty, takenBounties, turnIn } from '../rules/quests';
+import { ATTRS, ATTR_NAMES, type Character, type Reward, type Stats } from '../rules/types';
+import { itemStats } from '../ui/inspect';
 import { townScreen } from './town';
 
 const MAX_ROSTER = 20;
@@ -34,11 +38,14 @@ export const guildScreen: Screen = {
     game.shell.setMenu([
       { key: 'r', label: 'Roster', action: () => showRoster(game) },
       { key: 'b', label: 'Bounty board', action: () => showBounties(game) },
+      { key: 'c', label: 'Guild chest', action: () => showChest(game) },
       { key: 'l', label: 'Leave the Guild', action: () => game.go(townScreen) },
     ]);
     game.shell.setKeyHandler((e) => {
-      if (e.key === 'Escape' && !game.shell.overlayOpen) {
-        game.go(townScreen);
+      // Escape closes the open panel (roster, bounty board, chest) first, then leaves.
+      if (e.key === 'Escape') {
+        if (game.shell.overlayOpen) game.shell.setOverlay(null);
+        else game.go(townScreen);
         return true;
       }
       return false;
@@ -71,7 +78,8 @@ function showBounties(game: Game): void {
     const p = state.quests[q.id];
     const step = q.steps[Math.min(p.step, q.steps.length - 1)];
     const { have, need } = goalProgress(state, step.goal, p.count);
-    const row = el('div', { class: 'row' }, el('span', { class: 'grow', text: `${q.name}: ${p.status === 'ready' ? 'done!' : `${step.text}${need > 1 ? ` (${have}/${need})` : ''}`}` }));
+    const progress = need > 1 ? ` (${progressText(step.goal, have, need)})` : '';
+    const row = el('div', { class: 'row' }, el('span', { class: 'grow', text: `${q.name}: ${p.status === 'ready' ? 'done!' : `${step.text}${progress}`}` }));
     if (p.status === 'ready') {
       row.append(el('button', { class: 'btn small', text: `Claim (${rewardText(q.reward)})`, onclick: () => { game.audio.sfx('buy'); redraw(turnIn(state, q.id)); } }));
     }
@@ -92,6 +100,100 @@ function showBounties(game: Game): void {
     );
   }
   root.append(el('div', { class: 'tabs' }, el('button', { class: 'btn', text: 'Close', onclick: () => game.shell.setOverlay(null) })));
+  game.shell.setOverlay(root);
+}
+
+/** Which hero the chest is giving to and taking from (kept while the chest is open). */
+let chestHeroId: string | null = null;
+
+/** The Guild chest: leave items in town for later, and take them back out. */
+function showChest(game: Game): void {
+  const { state } = game;
+  const party = game.party;
+  const hero: Character | undefined = party.find((c) => c.id === chestHeroId) ?? party[0];
+  chestHeroId = hero?.id ?? null;
+  const redraw = (err: string | null, ok: string): void => {
+    game.audio.sfx(err ? 'error' : 'door');
+    game.say(err ?? ok, err ? 'bad' : '');
+    game.refreshParty();
+    showChest(game);
+  };
+  const root = el(
+    'div',
+    { class: 'panel' },
+    el(
+      'div',
+      { class: 'row' },
+      el('h2', { class: 'grow', text: 'Guild chest' }),
+      el('button', { class: 'btn small', text: 'Close (Esc)', onclick: () => game.shell.setOverlay(null) }),
+    ),
+    el('div', { class: 'dim', text: "A big iron-bound chest in the back room. Leave anything you want to keep for later; story items stay with the party." }),
+  );
+  if (!hero) {
+    root.append(el('div', { class: 'dim', text: 'You need a party first.' }));
+    game.shell.setOverlay(root);
+    return;
+  }
+
+  const tabs = el('div', { class: 'tabs' });
+  for (const c of party) {
+    tabs.append(
+      el('button', {
+        class: `btn small${c === hero ? ' active' : ''}`,
+        text: `${c.name} (${c.inventory.length}/${MAX_INVENTORY})`,
+        onclick: () => {
+          chestHeroId = c.id;
+          showChest(game);
+        },
+      }),
+    );
+  }
+  root.append(tabs);
+
+  root.append(el('h3', { text: `${hero.name}'s pack (${hero.inventory.length}/${MAX_INVENTORY})` }));
+  if (hero.inventory.length === 0) root.append(el('div', { class: 'dim', text: 'Empty.' }));
+  hero.inventory.forEach((id, index) => {
+    const item = content.item(id);
+    root.append(
+      el(
+        'div',
+        { class: 'row' },
+        el('span', { class: 'grow', text: item.name, title: item.desc }),
+        el('span', { class: 'dim', text: itemStats(item) || item.desc }),
+        el('button', {
+          class: 'btn small',
+          text: 'Store',
+          disabled: !!item.quest,
+          title: item.quest ? 'Story items stay with the party' : 'Put it in the chest',
+          onclick: () => redraw(storeItem(state, hero, index), `${hero.name} puts the ${item.name} in the chest.`),
+        }),
+      ),
+    );
+  });
+
+  root.append(el('h3', { text: `In the chest (${state.stash.length})` }));
+  if (state.stash.length === 0) root.append(el('div', { class: 'dim', text: 'Empty, apart from a very old sandwich.' }));
+  const counts = new Map<string, number>();
+  for (const id of state.stash) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const full = hero.inventory.length >= MAX_INVENTORY;
+  for (const [id, n] of [...counts].sort(([a], [b]) => content.item(a).name.localeCompare(content.item(b).name))) {
+    const item = content.item(id);
+    root.append(
+      el(
+        'div',
+        { class: 'row' },
+        el('span', { class: 'grow', text: n > 1 ? `${item.name} x${n}` : item.name, title: item.desc }),
+        el('span', { class: 'dim', text: itemStats(item) || item.desc }),
+        el('button', {
+          class: 'btn small',
+          text: `Take (to ${hero.name})`,
+          disabled: full,
+          title: full ? `${hero.name}'s pack is full` : undefined,
+          onclick: () => redraw(takeFromStash(state, id, hero), `${hero.name} takes the ${item.name} out of the chest.`),
+        }),
+      ),
+    );
+  }
   game.shell.setOverlay(root);
 }
 

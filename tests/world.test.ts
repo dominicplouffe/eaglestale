@@ -5,6 +5,7 @@ import { rollEncounter, specialKey, turn } from '../src/rules/dungeon';
 import { Rng } from '../src/rules/rng';
 import {
   addToParty, deleteCharacter, deserialize, movePartyMember, newGameState, removeFromParty, SAVE_VERSION, serialize, startingState,
+  storeItem, takeFromStash,
 } from '../src/rules/state';
 import { autoAllocate, createCharacter } from '../src/rules/character';
 import { starterParty } from '../src/content/base/story';
@@ -128,6 +129,28 @@ describe('party and saves', () => {
     expect(later.ok && later.state.roster[0].inventory).toEqual([]);
   });
 
+  it('keeps spare items in the Guild chest, but story items stay with the party', () => {
+    const s = startingState();
+    const a = makeHero('knight', 'A', 'human', 'a');
+    const b = makeHero('mage', 'B', 'human', 'b');
+    s.roster.push(a, b);
+    a.inventory.push('draught', 'sewerkey', 'draught');
+    expect(storeItem(s, a, 0)).toBeNull();
+    expect(storeItem(s, a, 1)).toBeNull();
+    expect(storeItem(s, a, 0)).toBe('Story items stay with the party.');
+    expect(a.inventory).toEqual(['sewerkey']);
+    expect(s.stash).toEqual(['draught', 'draught']);
+    expect(takeFromStash(s, 'draught', b)).toBeNull();
+    expect(b.inventory).toEqual(['draught']);
+    expect(s.stash).toEqual(['draught']);
+    expect(takeFromStash(s, 'plate', b)).toBe('That is not in the chest.');
+    b.inventory.push(...Array(7).fill('draught'));
+    expect(takeFromStash(s, 'draught', b)).toBe("B's pack is full.");
+    // The chest survives saving and loading.
+    const loaded = deserialize(serialize(s));
+    expect(loaded.ok && loaded.state.stash).toEqual(['draught']);
+  });
+
   it('repairs saves that refer to content that no longer exists', () => {
     const s = startingState();
     const hero = makeHero('knight', 'Bonk');
@@ -200,5 +223,6 @@ describe('party and saves', () => {
     expect(r.state.roster[0].inventory).toEqual(['draught']);
     expect(r.state.trophies).toEqual({ rattail: 2, cultsigil: 1 });
     expect(r.notes.join(' ')).toMatch(/3 moved to the party's trophy pouch/);
+    expect(r.state.stash).toEqual([]);
   });
 });

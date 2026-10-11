@@ -13,6 +13,8 @@ import {
   questEvent,
   shopStock,
   startOpeningQuests,
+  progressText,
+  repairQuests,
   startQuest,
   useUpKey,
   takeBounty,
@@ -74,6 +76,15 @@ content.register({
         { text: 'And a tail.', goal: { kind: 'collect', item: 'test-tail', count: 1 } },
       ],
       done: 'Fetched.',
+    },
+    {
+      id: 'test-bells',
+      name: 'Test Bells',
+      kind: 'side',
+      source: 'given',
+      summary: '',
+      steps: [{ text: 'Ring the test bells.', goal: { kind: 'flags', flags: ['tb-1', 'tb-2', 'tb-3'], verb: 'rung' } }],
+      done: 'All rung.',
     },
     { id: 'test-later', name: 'Later Bounty', kind: 'side', source: 'board', summary: '', requires: { quests: ['test-bounty'] }, steps: [{ text: 'x', goal: { kind: 'flag', flag: 'never' } }], done: '' },
   ],
@@ -186,13 +197,46 @@ describe('quests', () => {
     expect(collectLoot(s, ['rattail', 'rattail'])).toEqual([]);
     expect(s.trophies).toEqual({});
     takeBounty(s, 'b-rats');
-    expect(collectLoot(s, Array(12).fill('rattail'))).toEqual(['Into the trophy pouch: 10 x Rat Tail (10 now).']);
+    expect(collectLoot(s, Array(12).fill('rattail'))).toEqual(['Into the trophy pouch: 10 x Rat Tail.']);
     expect(s.trophies).toEqual({ rattail: 10 });
     expect(s.roster[0].inventory).toEqual([]);
     questEvent(s, { kind: 'check' });
     expect(s.quests['b-rats'].status).toBe('ready');
     turnIn(s, 'b-rats');
     expect(s.trophies).toEqual({});
+  });
+
+  it('says plainly how far along a counted goal is, as it moves', () => {
+    const s = game();
+    takeBounty(s, 'test-bounty');
+    expect(questEvent(s, { kind: 'kill', monster: 'rat', count: 1 })).toEqual(['Test Bounty: 1 of 3 defeated, 2 to go.']);
+    // Finishing the step says what's next instead.
+    expect(questEvent(s, { kind: 'kill', monster: 'rat', count: 2 })).toEqual(['Test Bounty: Bring 2 tails.']);
+    s.roster[0].inventory.push('test-tail');
+    expect(questEvent(s, { kind: 'check' })).toEqual(['Test Bounty: 1 of 2 collected, 1 to go.']);
+    expect(questEvent(s, { kind: 'check' })).toEqual([]);
+    expect(progressText({ kind: 'feathers', count: 12 }, 12, 12)).toBe('all 12 found');
+  });
+
+  it('a goal of several flags can be done in any order, counting as it goes', () => {
+    const s = game();
+    startQuest(s, 'test-bells');
+    expect(questEvent(s, { kind: 'flag', flag: 'tb-3' })).toEqual(['Test Bells: 1 of 3 rung, 2 to go.']);
+    expect(questEvent(s, { kind: 'flag', flag: 'tb-1' })).toEqual(['Test Bells: 2 of 3 rung, 1 to go.']);
+    expect(questEvent(s, { kind: 'flag', flag: 'tb-2' })).toEqual(['All rung.']);
+    expect(s.quests['test-bells'].status).toBe('done');
+  });
+
+  it('a save from when the quest had more steps goes back to a step it has', () => {
+    const s = game();
+    s.quests['test-bells'] = { step: 2, count: 0, status: 'active' };
+    s.story['tb-1'] = true;
+    repairQuests(s);
+    expect(s.quests['test-bells']).toEqual({ step: 0, count: 0, status: 'active' });
+    s.story['tb-2'] = true;
+    s.story['tb-3'] = true;
+    s.quests['test-bells'].step = 1;
+    expect(repairQuests(s)).toEqual(['All rung.']);
   });
 
   it('a lock can wait on a story flag (a wheel turned somewhere else)', () => {
