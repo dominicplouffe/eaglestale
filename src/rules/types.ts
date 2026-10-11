@@ -147,13 +147,22 @@ export interface Reward {
   xp?: number;
 }
 
+/** A drawing (see gfx/art) shown standing on a square in the first-person view, optionally recoloured. */
+export interface Look {
+  art: string;
+  palette?: Record<string, string>;
+}
+
+/** The buildings in town that open into a screen of their own. */
+export type PlaceId = 'guild' | 'shop' | 'temple' | 'inn' | 'tower';
+
 /**
- * Special squares. Most fire when the party steps on them; `lock` and `secret` squares block the way
- * until opened or found. `flag` names a story flag set when the special is done (a fight won, a
- * treasure taken, a talk had), which quests can wait for.
+ * Special squares. Most fire when the party steps on them; `lock`, `secret` and `building` squares sit
+ * in walls and fire when the party walks into them. `flag` names a story flag set when the special is
+ * done (a fight won, a treasure taken, a talk had), which quests and locks can wait for.
  */
 export type Special =
-  | { kind: 'message'; text: string; flag?: string }
+  | { kind: 'message'; text: string; flag?: string; /** Said on later visits instead of `text`. */ after?: string }
   | { kind: 'trap'; dice: Dice; text: string }
   | { kind: 'treasure'; text: string; gold?: number; item?: string; feather?: string; flag?: string }
   | { kind: 'fountain'; text: string }
@@ -166,14 +175,20 @@ export type Special =
       /** Ends the game with the victory screen when won. */
       finale?: boolean;
       flag?: string;
+      /** An ambush: the foes aren't seen standing there before the fight. */
+      hidden?: boolean;
     }
   | {
-      /** A door that stays shut until the party carries `key` (an item) and/or `feathers` feathers. */
+      /**
+       * A door that stays shut until the party carries `key` (an item) and/or `feathers` feathers,
+       * and/or until story `flag` is set (say, by a wheel turned somewhere else).
+       */
       kind: 'lock';
       text: string;
       opened: string;
       key?: string;
       feathers?: number;
+      flag?: string;
     }
   | {
       /** Looks like wall. Walking into it opens a passage; a rogue in the party senses a draught nearby. */
@@ -188,7 +203,45 @@ export type Special =
       after: string;
       quest?: string;
       flag?: string;
+      /** How they look, standing there. */
+      look?: Look;
+    }
+  | {
+      /**
+       * A building's front door, set in a wall. Walking into it goes inside `place`; a door with no
+       * place just says `text` (somebody's house, or a building that opens in a later chapter).
+       */
+      kind: 'building';
+      name: string;
+      place?: PlaceId;
+      text?: string;
+      /** Listed under Go to from the start (the places everyone in town knows); others once seen. */
+      known?: boolean;
+      /** Its key in the Go to list. */
+      hotkey?: string;
+    }
+  | {
+      /** A way down into a dungeon that the party steps onto (steps, a grate). Can need a key or feathers. */
+      kind: 'portal';
+      dungeon: string;
+      name: string;
+      text: string;
+      key?: string;
+      feathers?: number;
+      /** Set the first time the party goes through. */
+      flag?: string;
+      known?: boolean;
+      hotkey?: string;
     };
+
+/** A named part of a level, e.g. a street, shown in the location bar while the party is in it. */
+export interface Area {
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface DungeonLevel {
   name: string;
@@ -200,6 +253,17 @@ export interface DungeonLevel {
   encounterRate: number;
   specials: Record<string, Special>;
   theme: DungeonTheme;
+  areas?: Area[];
+  /** Blocks of wall drawn as something grander than the theme's walls (and taller), e.g. a tower. */
+  landmarks?: Landmark[];
+}
+
+export interface Landmark {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  look: 'tower' | 'clock' | 'temple';
 }
 
 export interface DungeonTheme {
@@ -209,15 +273,20 @@ export interface DungeonTheme {
   door: string;
   /**
    * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
-   * blocks) or 'rune' (dressed stone with glowing runes). Defaults to 'brick'.
+   * blocks), 'rune' (dressed stone with glowing runes), 'sewer' (wet brick and pipes) or 'city'
+   * (timber-framed houses on cobbles). Defaults to 'brick'.
    */
-  style?: 'brick' | 'stone' | 'rune';
+  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city';
+  /** Outdoors: the colour of the sky where it meets the rooftops (there is no ceiling). */
+  sky?: string;
 }
 
 export interface DungeonDef {
   id: string;
   name: string;
   levels: DungeonLevel[];
+  /** The walkable town: one level of streets, where buildings open into the town's screens. */
+  city?: boolean;
 }
 
 export interface ShopDef {

@@ -10,6 +10,7 @@ import {
   questEvent,
   shopStock,
   startOpeningQuests,
+  startQuest,
   takeBounty,
   turnIn,
 } from '../src/rules/quests';
@@ -20,7 +21,10 @@ import { makeHero } from './helpers';
 // A small test pack, so these rules are checked independently of the real story content.
 content.register({
   id: 'quest-test',
-  items: [{ id: 'test-tail', name: 'Test Tail', desc: '', price: 1 }],
+  items: [
+    { id: 'test-tail', name: 'Test Tail', desc: '', price: 1 },
+    { id: 'test-letter', name: 'Test Letter', desc: '', price: 0, quest: true },
+  ],
   feathers: [
     { id: 'test-f1', name: 'the First Test Feather', desc: '' },
     { id: 'test-f2', name: 'the Second Test Feather', desc: '' },
@@ -54,6 +58,18 @@ content.register({
       ],
       reward: { gold: 50 },
       done: 'Bounty done.',
+    },
+    {
+      id: 'test-fetch',
+      name: 'Test Fetch',
+      kind: 'side',
+      source: 'given',
+      summary: '',
+      steps: [
+        { text: 'Find the letter.', goal: { kind: 'collect', item: 'test-letter', count: 1 } },
+        { text: 'And a tail.', goal: { kind: 'collect', item: 'test-tail', count: 1 } },
+      ],
+      done: 'Fetched.',
     },
     { id: 'test-later', name: 'Later Bounty', kind: 'side', source: 'board', summary: '', requires: { quests: ['test-bounty'] }, steps: [{ text: 'x', goal: { kind: 'flag', flag: 'never' } }], done: '' },
   ],
@@ -129,6 +145,23 @@ describe('quests', () => {
     for (let i = 0; i < 20 && b.outcome === 'ongoing'; i++) b.resolveRound(new Map([['knight', { kind: 'attack', group: 0 }]]));
     expect(b.outcome).toBe('victory');
     expect(b.kills).toEqual({ rat: 2 });
+  });
+
+  it('a given quest takes the story items it asked for, but the party keeps the rest', () => {
+    const s = game();
+    const hero = s.roster[0];
+    hero.inventory.push('test-letter', 'test-tail');
+    startQuest(s, 'test-fetch');
+    expect(s.quests['test-fetch'].status).toBe('done');
+    expect(hero.inventory).toContain('test-tail');
+    expect(hero.inventory).not.toContain('test-letter');
+  });
+
+  it('a lock can wait on a story flag (a wheel turned somewhere else)', () => {
+    const s = game();
+    expect(lockedBecause(s, { flag: 'test-wheel' })).toBe("It won't budge.");
+    questEvent(s, { kind: 'flag', flag: 'test-wheel' });
+    expect(lockedBecause(s, { flag: 'test-wheel' })).toBeNull();
   });
 
   it('locks say what is missing until the party has it', () => {

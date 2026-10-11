@@ -20,6 +20,7 @@ export class Game {
   readonly saves = new SaveSlots();
   /** The save slot this game was loaded from or last saved to (null for a new game or the autosave). */
   slot: SlotId | null = null;
+  private autosaveWarned = false;
 
   constructor(
     readonly shell: Shell,
@@ -80,9 +81,11 @@ export class Game {
     return ok;
   }
 
-  /** Quietly saves to the autosave slot (only a failure is mentioned). */
+  /** Quietly saves to the autosave slot (a failure is mentioned, once). */
   autosave(): void {
-    if (!this.saves.write('auto', this.state)) this.say("Couldn't autosave: this browser is blocking or out of site storage.", 'bad');
+    if (this.saves.write('auto', this.state) || this.autosaveWarned) return;
+    this.autosaveWarned = true;
+    this.say("Couldn't autosave: this browser is blocking or out of site storage.", 'bad');
   }
 
   /** Loads a slot into `state` if it can be read; the result says why not, or what was repaired. */

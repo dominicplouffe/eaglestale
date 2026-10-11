@@ -16,11 +16,14 @@ export function tileAt(level: DungeonLevel, x: number, y: number): string {
   return level.grid[y]?.[x] ?? '#';
 }
 
-/** '=' is a shut door (a lock not yet opened); it never appears in level grids, only in `effectiveTile`. */
-export const isWalkable = (tile: string): boolean => tile !== '#' && tile !== ' ' && tile !== '=';
+/**
+ * '=' is a shut door (a lock not yet opened) and '&' a building's front door. Neither appears in level
+ * grids, only in `effectiveTile`.
+ */
+export const isWalkable = (tile: string): boolean => tile !== '#' && tile !== ' ' && tile !== '=' && tile !== '&';
 
 /** Tiles that are neither plain floor nor stairs nor door are authored special tiles. */
-export const isSpecialTile = (tile: string): boolean => !'#. +<>='.includes(tile);
+export const isSpecialTile = (tile: string): boolean => !'#. +<>=&'.includes(tile);
 
 export const specialKey = (dungeon: string, level: number, x: number, y: number): string =>
   `${dungeon}:${level}:${x},${y}`;
@@ -29,14 +32,22 @@ export const levelKey = (dungeon: string, level: number): string => `${dungeon}:
 
 /**
  * How a square looks and behaves right now: a lock is a shut door '=' until opened (then a doorway),
- * and a secret is wall '#' until found (then floor). `done` says whether a special has been used.
+ * a secret is wall '#' until found (then floor), a building is its front door '&' and a portal looks
+ * like stairs down. `done` says whether a special has been used.
  */
 export function effectiveTile(level: DungeonLevel, x: number, y: number, done: (x: number, y: number) => boolean): string {
   const t = tileAt(level, x, y);
   const s = level.specials[t];
   if (s?.kind === 'lock') return done(x, y) ? '+' : '=';
   if (s?.kind === 'secret') return done(x, y) ? '.' : '#';
+  if (s?.kind === 'building') return '&';
+  if (s?.kind === 'portal') return '>';
   return t;
+}
+
+/** The named area (e.g. a street) a square is in, if any. */
+export function areaAt(level: DungeonLevel, x: number, y: number): string | undefined {
+  return level.areas?.find((a) => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h)?.name;
 }
 
 /** Rolls the monster groups for a random encounter on `level`. */

@@ -9,7 +9,7 @@ export const story = {
     'His cult has dug in right under your feet, in the Roost Below: the cellars, crypts and sanctum beneath the old Eagle Tower. Bring the feathers back to the tower, one by one, and the city will start to remember itself.',
     'The Mayor has offered a reward to anyone brave, foolish or desperate enough to go down there. So, naturally, he asked you.',
   ],
-  townHint: 'Visit the Guild to recruit heroes, stock up at the Emporium, then enter the Roost Below. Your Journal (J) keeps track of the quest.',
+  townHint: "You stand in Feather Square, facing the Guild. Walk in (Up arrow, twice) to recruit heroes. G lists the places you know in town, and your Journal (J) keeps track of the quest.",
   victory: [
     "Malachar crumples with a long, dignified squawk. From his tattered robes tumbles Aquila's Golden Pinion, glowing like a small sunrise.",
     'You carry it up through the crypts and cellars. As you step into Talonreach the clouds crack open and a great shadow sweeps over the rooftops. Aquila is home.',

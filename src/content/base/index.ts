@@ -1,7 +1,9 @@
 import type { ContentPack } from '../../rules/types';
 import { cityStages, feathers, quests } from './campaign';
+import { talonreach } from './city';
 import { classes } from './classes';
 import { dungeons } from './dungeons';
+import { gurgle } from './gurgle';
 import { items } from './items';
 import { monsters } from './monsters';
 import { races } from './races';
@@ -16,7 +18,7 @@ export const basePack: ContentPack = {
   items,
   spells,
   monsters,
-  dungeons,
+  dungeons: [talonreach, ...dungeons, gurgle],
   shops,
   quests,
   feathers,

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../src/content';
 import { isSpecialTile, isWalkable, tileAt } from '../src/rules/dungeon';
-import { ATTRS } from '../src/rules/types';
+import { ATTRS, type DungeonLevel } from '../src/rules/types';
 import './helpers';
+
+/** Squares the party can stand on (a building's door is in a wall; locks and secrets count as open). */
+const canStand = (level: DungeonLevel, t: string): boolean => isWalkable(t) && level.specials[t]?.kind !== 'building';
 
 describe('content integrity', () => {
   it('classes reference real items and spells', () => {
@@ -41,36 +44,63 @@ describe('content integrity', () => {
     for (const dungeon of content.dungeons.values()) {
       dungeon.levels.forEach((level, li) => {
         const { x, y } = level.start;
-        expect(tileAt(level, x, y)).toBe('<');
+        // Dungeon levels start on the stairs up; the city starts in its square.
+        if (!dungeon.city) expect(tileAt(level, x, y)).toBe('<');
+        expect(canStand(level, tileAt(level, x, y)), `${dungeon.id} start`).toBe(true);
         const seen = new Set<string>([`${x},${y}`]);
         const queue: [number, number][] = [[x, y]];
         for (let i = 0; i < queue.length; i++) {
           const [cx, cy] = queue[i];
           for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
             const k = `${cx + dx},${cy + dy}`;
-            if (isWalkable(tileAt(level, cx + dx, cy + dy)) && !seen.has(k)) {
+            if (canStand(level, tileAt(level, cx + dx, cy + dy)) && !seen.has(k)) {
               seen.add(k);
               queue.push([cx + dx, cy + dy]);
             }
           }
         }
-        const walkable = level.grid.join('').split('').filter(isWalkable).length;
+        const walkable = level.grid.join('').split('').filter((t) => canStand(level, t)).length;
         expect(seen.size, `${dungeon.id} level ${li} connectivity`).toBe(walkable);
 
         const letters = new Set(level.grid.join('').split('').filter(isSpecialTile));
         for (const l of letters) expect(level.specials[l], `${li} tile ${l}`).toBeDefined();
         for (const e of level.encounters) expect(content.monsters.has(e.monster)).toBe(true);
         const hasDown = level.grid.some((r) => r.includes('>'));
-        expect(hasDown).toBe(li < dungeon.levels.length - 1);
+        if (!dungeon.city) expect(hasDown).toBe(li < dungeon.levels.length - 1);
         for (const s of Object.values(level.specials)) {
           if (s.kind === 'fight') for (const g of s.groups) expect(content.monsters.has(g.monster)).toBe(true);
           if ((s.kind === 'treasure' && s.item) || (s.kind === 'fight' && s.reward?.item)) {
             const id = s.kind === 'treasure' ? s.item : s.reward?.item;
             expect(content.items.has(id as string)).toBe(true);
           }
+          if (s.kind === 'portal') expect(content.dungeons.has(s.dungeon), `portal to ${s.dungeon}`).toBe(true);
+          if ((s.kind === 'portal' || s.kind === 'lock') && s.key) expect(content.items.has(s.key), `key ${s.key}`).toBe(true);
+          if (s.kind === 'talk' && s.quest) expect(content.quests.has(s.quest), `talk starts ${s.quest}`).toBe(true);
+        }
+        for (const a of [...(level.areas ?? []), ...(level.landmarks ?? [])]) {
+          expect(a.x >= 0 && a.y >= 0 && a.x + a.w <= level.grid[0].length && a.y + a.h <= level.grid.length, `area at ${a.x},${a.y}`).toBe(true);
         }
       });
     }
+  });
+
+  it('there is one city, and every dungeon can be reached from it (and climbed out of to it)', () => {
+    const cities = [...content.dungeons.values()].filter((d) => d.city);
+    expect(cities).toHaveLength(1);
+    const city = cities[0].levels[0];
+    const portals = Object.values(city.specials).filter((s) => s.kind === 'portal');
+    for (const d of content.dungeons.values()) {
+      if (d.city) continue;
+      expect(portals.some((p) => p.kind === 'portal' && p.dungeon === d.id), `a way down into ${d.id}`).toBe(true);
+    }
+    // Building doors sit in walls, with a street square in front of them.
+    city.grid.forEach((row, y) => {
+      [...row].forEach((t, x) => {
+        if (city.specials[t]?.kind !== 'building') return;
+        const fronts = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([dx, dy]) => canStand(city, tileAt(city, x + dx, y + dy)));
+        expect(fronts.length, `door ${t} at ${x},${y}`).toBeGreaterThan(0);
+      });
+    });
   });
 
   it('a finale fight, wherever there is one, sits on the last level of its dungeon', () => {
@@ -106,14 +136,15 @@ describe('content integrity', () => {
     expect(content.feathers.size).toBe(12);
   });
 
-  it('every level can be finished: keys and feathers are found before the doors that need them', () => {
+  it('every level can be finished: keys, feathers and wheels are found before the doors that need them', () => {
     const DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
     let feathersSoFar = new Set<string>();
     for (const dungeon of content.dungeons.values()) {
       dungeon.levels.forEach((level, li) => {
         const items = new Set<string>();
+        const flags = new Set<string>();
         const featherCount = (): number => feathersSoFar.size;
-        // Walk outward from the start; a lock is passable once its key and feathers have been found.
+        // Walk outward from the start; a lock is passable once its key, feathers and flag have been found.
         let reached = new Set<string>();
         for (let pass = 0; pass < 20; pass++) {
           const before = reached.size;
@@ -126,13 +157,14 @@ describe('content integrity', () => {
             if (s?.kind === 'treasure' && s.feather) feathersSoFar.add(s.feather);
             if (s?.kind === 'fight' && s.reward?.item) items.add(s.reward.item);
             if (s?.kind === 'fight' && s.reward?.feather) feathersSoFar.add(s.reward.feather);
+            if (s && 'flag' in s && s.kind !== 'lock' && s.flag) flags.add(s.flag);
             for (const [dx, dy] of DIRS4) {
               const nx = x + dx;
               const ny = y + dy;
               const t = tileAt(level, nx, ny);
               const sp = level.specials[t];
-              const open = isWalkable(t) && !(sp?.kind === 'lock' && ((sp.key && !items.has(sp.key)) || (sp.feathers ?? 0) > featherCount()));
-              if (open && !reached.has(`${nx},${ny}`)) {
+              const shut = sp?.kind === 'lock' && ((sp.key && !items.has(sp.key)) || (sp.feathers ?? 0) > featherCount() || (sp.flag && !flags.has(sp.flag)));
+              if (canStand(level, t) && !shut && !reached.has(`${nx},${ny}`)) {
                 reached.add(`${nx},${ny}`);
                 queue.push([nx, ny]);
               }
@@ -140,7 +172,7 @@ describe('content integrity', () => {
           }
           if (reached.size === before) break;
         }
-        const walkable = level.grid.join('').split('').filter(isWalkable).length;
+        const walkable = level.grid.join('').split('').filter((t) => canStand(level, t)).length;
         expect(reached.size, `${dungeon.id} level ${li}: every square reachable`).toBe(walkable);
       });
       feathersSoFar = new Set(feathersSoFar);

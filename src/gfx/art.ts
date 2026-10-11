@@ -1,4 +1,6 @@
 import { MONSTER_ART } from './art/monsters';
+import { PEOPLE_ART } from './art/people';
+import { SEWER_ART } from './art/sewer';
 import { mixRGB, parseHex, ramp, toHex } from './colors';
 
 /**
@@ -28,6 +30,8 @@ export function registerArt(defs: Record<string, ArtDef>): void {
 }
 
 registerArt(MONSTER_ART);
+registerArt(PEOPLE_ART);
+registerArt(SEWER_ART);
 
 export const hasArt = (name: string): boolean => registry.has(name);
 export const artDef = (name: string): ArtDef | undefined => registry.get(name);
@@ -92,4 +96,31 @@ export function drawArt(ctx: CanvasRenderingContext2D, name: string, x: number, 
   if (!img) return;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, Math.round(x), Math.round(y), ART_SIZE * scale, ART_SIZE * scale);
+}
+
+const pixelCache = new Map<string, Uint32Array>();
+
+/**
+ * The drawing as raw packed pixels (ABGR, as canvas ImageData stores them; alpha 0 = see-through),
+ * for the first-person view's sprites. Null if there is no such drawing.
+ */
+export function artPixels(name: string, recolor: Record<string, string> = {}): Uint32Array | null {
+  const def = registry.get(name);
+  if (!def) return null;
+  const key = `${name}|${JSON.stringify(recolor)}`;
+  const hit = pixelCache.get(key);
+  if (hit) return hit;
+  const colors = colorsFor(def, recolor);
+  const out = new Uint32Array(ART_SIZE * ART_SIZE);
+  def.rows.forEach((half, y) => {
+    const row = def.symmetric ? half + [...half].reverse().join('') : half;
+    for (let x = 0; x < row.length && x < ART_SIZE; x++) {
+      const color = colors[row[x]];
+      if (row[x] === '.' || !color) continue;
+      const [r, g, b] = parseHex(color);
+      out[y * ART_SIZE + x] = ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+    }
+  });
+  pixelCache.set(key, out);
+  return out;
 }

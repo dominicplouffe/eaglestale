@@ -1,22 +1,28 @@
 import { content } from '../content/registry';
 import type { Game, Screen } from '../engine/game';
 import { el, type MenuItem } from '../engine/shell';
-import { VIEW_H, VIEW_W, renderDungeon } from '../gfx/dungeonView';
+import { artPixels } from '../gfx/art';
+import { mixRGB, parseHex, toHex } from '../gfx/colors';
+import { VIEW_H, VIEW_W, renderDungeon, type ViewSprite } from '../gfx/dungeonView';
 import { drawText } from '../gfx/font';
 import { MAP_COLORS, drawMinimap } from '../gfx/minimap';
 import { FRONT_ROW_SIZE, isAlive, restoreFully } from '../rules/character';
 import type { EncounterSpec } from '../rules/combat';
-import { DIRS, effectiveTile, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
-import { giveReward, lockedBecause, questEvent, startQuest } from '../rules/quests';
+import { DIRS, areaAt, effectiveTile, isSpecialTile, isWalkable, levelKey, rollEncounter, specialKey, tileAt, turn } from '../rules/dungeon';
+import { giveReward, lockedBecause, offerFeathers, questEvent, startQuest } from '../rules/quests';
 import { gameRng } from '../rules/rng';
 import { movePartyMember, type DungeonPosition } from '../rules/state';
-import type { DungeonLevel, Special } from '../rules/types';
+import type { DungeonDef, DungeonLevel, PlaceId, Special } from '../rules/types';
 import { openCharSheet } from '../ui/charSheet';
 import { openJournal } from '../ui/journal';
 import { startBattle } from './combat';
-import { partyWiped } from './flow';
+import { hasLivingParty, partyWiped } from './flow';
+import { guildScreen } from './guild';
+import { innScreen } from './inn';
 import { chooseSaveSlot } from './saveMenu';
-import { townScreen } from './town';
+import { shopScreen } from './shop';
+import { templeScreen } from './temple';
+import { titleScreen } from './title';
 import { victoryScreen } from './victory';
 
 /** Fights that happen right after a step can't start until the party has walked a little. */
@@ -27,6 +33,55 @@ const BIG_MAP_PX = 480;
 const STEP_MS = 150;
 const TURN_MS = 130;
 const BUMP_MS = 170;
+/** How bright the streets are by day, however far away (the dungeons only have torchlight). */
+const DAYLIGHT = 0.62;
+/** The sky over Talonreach once every feather is home. */
+const CLEAR_SKY = '#8cc8f0';
+
+type Building = Extract<Special, { kind: 'building' }>;
+type Portal = Extract<Special, { kind: 'portal' }>;
+
+/** Where every special square on a level is (worked out once per level). */
+const squaresCache = new WeakMap<DungeonLevel, { x: number; y: number; special: Special }[]>();
+function specialSquares(level: DungeonLevel): { x: number; y: number; special: Special }[] {
+  let list = squaresCache.get(level);
+  if (!list) {
+    list = [];
+    level.grid.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        const special = isSpecialTile(row[x]) ? level.specials[row[x]] : undefined;
+        if (special) list?.push({ x, y, special });
+      }
+    });
+    squaresCache.set(level, list);
+  }
+  return list;
+}
+
+/** Where the party stands in town when they arrive there with nowhere in particular to be. */
+export function cityStart(): DungeonPosition {
+  const city = [...content.dungeons.values()].find((d) => d.city);
+  if (!city) throw new Error('There is no city (a dungeon with city: true) in the content.');
+  return { dungeon: city.id, level: 0, ...city.levels[0].start };
+}
+
+/** Where the party comes out in town when they climb out of a dungeon: on its way down, facing the street. */
+function cityExit(dungeonId: string): DungeonPosition {
+  for (const d of content.dungeons.values()) {
+    if (!d.city) continue;
+    const level = d.levels[0];
+    const found = specialSquares(level).find((sq) => sq.special.kind === 'portal' && sq.special.dungeon === dungeonId);
+    if (found) return { dungeon: d.id, level: 0, x: found.x, y: found.y, dir: openDirection(level, found.x, found.y) };
+  }
+  return cityStart();
+}
+
+function openDirection(level: DungeonLevel, x: number, y: number): number {
+  const found = DIRS.findIndex((d) => isWalkable(tileAt(level, x + d.dx, y + d.dy)));
+  return found < 0 ? 0 : found;
+}
+
+const PLACES: Record<Exclude<PlaceId, 'tower'>, Screen> = { guild: guildScreen, shop: shopScreen, temple: templeScreen, inn: innScreen };
 
 interface Camera {
   x: number;
@@ -56,8 +111,22 @@ class DungeonView {
     return this.game.state.location as DungeonPosition;
   }
 
+  private get dungeon(): DungeonDef {
+    return content.dungeon(this.pos.dungeon);
+  }
+
   private get level(): DungeonLevel {
-    return content.dungeon(this.pos.dungeon).levels[this.pos.level];
+    return this.dungeon.levels[this.pos.level];
+  }
+
+  /** In the streets of the town rather than a dungeon. */
+  private get inCity(): boolean {
+    return !!this.dungeon.city;
+  }
+
+  /** The street (or the level) the party is in, for the location bar and the view. */
+  private get placeName(): string {
+    return this.inCity ? (areaAt(this.level, this.pos.x, this.pos.y) ?? 'the streets') : this.level.name;
   }
 
   /** Whether the special at a square has been used (a lock opened, a secret found, a chest emptied). */
@@ -77,15 +146,20 @@ class DungeonView {
 
   start(): void {
     const { shell, audio } = this.game;
-    audio.music('dungeon');
+    audio.music(this.inCity ? 'town' : 'dungeon');
     this.explore();
     this.anim = null;
     this.queued = [];
     shell.setDraw((ctx, t) => {
       const cam = this.camera(performance.now());
-      renderDungeon(ctx, { level: this.level, x: cam.x, y: cam.y, dir: this.pos.dir, angle: cam.angle, at: this.at }, t);
+      renderDungeon(
+        ctx,
+        { level: this.level, x: cam.x, y: cam.y, dir: this.pos.dir, angle: cam.angle, at: this.at, sprites: this.sprites(), sky: this.sky() },
+        t,
+        this.inCity ? DAYLIGHT : 0,
+      );
       drawText(ctx, DIRS[this.pos.dir].name, 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c' });
-      drawText(ctx, this.level.name, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
+      drawText(ctx, this.placeName, VIEW_W - 5, VIEW_H - 13, { color: '#e8e2f4', outline: '#0e0a1c', align: 'right' });
     });
     shell.setKeyHandler((e) => {
       const moves: Record<string, () => void> = {
@@ -103,6 +177,37 @@ class DungeonView {
     });
     this.mainMenu();
     this.refreshHud();
+  }
+
+  /** People, undefeated foes and unopened chests, standing where they are. */
+  private sprites(): ViewSprite[] {
+    const out: ViewSprite[] = [];
+    for (const { x, y, special } of specialSquares(this.level)) {
+      let pixels: Uint32Array | null = null;
+      let scale = 0.8;
+      if (special.kind === 'talk' && special.look) {
+        pixels = artPixels(special.look.art, special.look.palette);
+        scale = 0.62;
+      }
+      else if (special.kind === 'fight' && !special.hidden && !this.used(x, y)) {
+        const m = content.monster(special.groups[0].monster);
+        pixels = artPixels(m.sprite, m.palette);
+        scale = 0.9;
+      } else if (special.kind === 'treasure' && !this.used(x, y)) {
+        pixels = artPixels('chest');
+        scale = 0.5;
+      }
+      if (pixels) out.push({ x, y, pixels, scale });
+    }
+    return out;
+  }
+
+  /** The city's sky clears as Aquila's feathers come home. */
+  private sky(): string | undefined {
+    const base = this.level.theme.sky;
+    if (!base || !this.inCity) return base;
+    const recovered = Math.min(1, this.game.state.offered / Math.max(1, content.feathers.size));
+    return toHex(mixRGB(parseHex(base), parseHex(CLEAR_SKY), recovered));
   }
 
   /** Where to draw the camera now: easing toward the party's square and facing. */
@@ -139,7 +244,9 @@ class DungeonView {
 
   private refreshHud(): void {
     const { shell } = this.game;
-    shell.setLocation(`${content.dungeon(this.pos.dungeon).name} - ${this.level.name} (level ${this.pos.level + 1})`);
+    shell.setLocation(
+      this.inCity ? `${this.dungeon.name} - ${this.placeName}` : `${this.dungeon.name} - ${this.level.name} (level ${this.pos.level + 1})`,
+    );
     shell.minimap.hidden = false;
     const set = new Set(this.game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
     drawMinimap(shell.minimap, this.level, set, this.pos, this.at);
@@ -155,18 +262,40 @@ class DungeonView {
 
   private mainMenu(): void {
     this.modal = false;
+    const walk: MenuItem[] = [
+      { key: 'w', label: 'Forward', action: () => this.step() },
+      { key: 'a', label: 'Turn left', action: () => this.turn(-1) },
+      { key: 'd', label: 'Turn right', action: () => this.turn(1) },
+      { key: 's', label: 'Turn around', action: () => this.turn(2) },
+    ];
+    if (this.inCity) {
+      this.game.shell.setMenu(
+        [
+          ...walk,
+          { key: 'e', label: 'Go down here', action: () => this.useStairs() },
+          { key: 'g', label: 'Go to...', action: () => this.goTo() },
+          { key: 'j', label: 'Journal', action: () => this.journal() },
+          { key: 'c', label: 'Party and saving', action: () => this.camp() },
+          { key: 'q', label: 'Quit to title', action: () => this.quit() },
+        ],
+        `Gold: ${this.game.state.gold}`,
+      );
+      return;
+    }
     this.game.shell.setMenu(
       [
-        { key: 'w', label: 'Forward', action: () => this.step() },
-        { key: 'a', label: 'Turn left', action: () => this.turn(-1) },
-        { key: 'd', label: 'Turn right', action: () => this.turn(1) },
-        { key: 's', label: 'Turn around', action: () => this.turn(2) },
+        ...walk,
         { key: 'e', label: 'Use stairs here', action: () => this.useStairs() },
         { key: 'j', label: 'Journal', action: () => this.journal() },
         { key: 'c', label: 'Camp (party, save)', action: () => this.camp() },
       ],
       'Exploring',
     );
+  }
+
+  private quit(): void {
+    this.game.autosave();
+    this.game.go(titleScreen);
   }
 
   private turn(delta: number): void {
@@ -208,6 +337,7 @@ class DungeonView {
     const tile = this.at(nx, ny);
     const from = this.camera(performance.now());
     const opening = !isWalkable(tile);
+    if (special?.kind === 'building') return this.enterBuilding(special, from);
     if (opening) {
       if (special?.kind === 'secret') {
         // Walking into a secret wall finds it.
@@ -240,6 +370,7 @@ class DungeonView {
 
     if (raw === '<' || raw === '>') return this.askStairs(raw);
     if (special && special.kind !== 'lock' && special.kind !== 'secret') return this.trigger(special, nx, ny);
+    if (this.inCity) return;
     if (
       game.state.stepsSinceFight >= MIN_STEPS_BETWEEN_FIGHTS &&
       gameRng.chance(this.level.encounterRate)
@@ -252,8 +383,10 @@ class DungeonView {
 
   private useStairs(): void {
     const tile = tileAt(this.level, this.pos.x, this.pos.y);
+    const special = this.level.specials[tile];
     if (tile === '<' || tile === '>') this.askStairs(tile);
-    else this.game.say('There are no stairs here.', 'dim');
+    else if (special?.kind === 'portal') this.usePortal(special);
+    else this.game.say(this.inCity ? 'There is no way down here.' : 'There are no stairs here.', 'dim');
   }
 
   private askStairs(tile: '<' | '>'): void {
@@ -263,10 +396,11 @@ class DungeonView {
     this.confirm(question, () => {
       this.game.audio.sfx('stairs');
       if (toTown) {
-        this.game.go(townScreen);
+        this.game.state.location = cityExit(this.pos.dungeon);
+        this.game.go(dungeonScreen);
         return this.game.autosave();
       }
-      const dungeon = content.dungeon(this.pos.dungeon);
+      const dungeon = this.dungeon;
       const level = this.pos.level + (goingUp ? -1 : 1);
       const target = dungeon.levels[level];
       // Arrive on the matching staircase, facing away from it.
@@ -274,7 +408,7 @@ class DungeonView {
       let spot = target.start;
       target.grid.forEach((row, y) => {
         const x = row.indexOf(arriveOn);
-        if (x >= 0) spot = { x, y, dir: this.openDirection(target, x, y) };
+        if (x >= 0) spot = { x, y, dir: openDirection(target, x, y) };
       });
       this.game.state.location = { dungeon: dungeon.id, level, ...spot };
       this.anim = null; // a new level: no gliding from the old spot
@@ -285,9 +419,123 @@ class DungeonView {
     });
   }
 
-  private openDirection(level: DungeonLevel, x: number, y: number): number {
-    const found = DIRS.findIndex((d) => isWalkable(tileAt(level, x + d.dx, y + d.dy)));
-    return found < 0 ? 0 : found;
+  // ---- The town ------------------------------------------------------------
+
+  /** Walking into a front door: in you go (or someone shouts that they're closed). */
+  private enterBuilding(b: Building, from: { x: number; y: number; angle: number }): void {
+    const { game } = this;
+    if (b.place === 'tower') return this.eagleTower();
+    if (!b.place) {
+      game.say(b.text ?? `${b.name}: the door is locked.`, 'dim');
+      game.audio.sfx('bump');
+      this.glide(from, BUMP_MS, true);
+      return;
+    }
+    // When the party comes back out, they face the street.
+    this.pos.dir = turn(this.pos.dir, 2);
+    game.audio.sfx('door');
+    game.go(PLACES[b.place]);
+  }
+
+  /** Returning Aquila's feathers to the tower is how the city recovers. */
+  private eagleTower(): void {
+    const { game } = this;
+    const lines = offerFeathers(game.state);
+    if (lines.length === 0) {
+      game.say(
+        game.state.offered === 0
+          ? "The Eagle Tower's perch stands empty. Bring back Aquila's feathers and the city will remember how to hope."
+          : 'The keepers of the tower nod at you. Every feather counts; bring the rest home.',
+        'story',
+      );
+      return;
+    }
+    game.audio.sfx('levelup');
+    game.say('You climb the Eagle Tower and lay the feathers on the empty perch. They glow, faintly at first.', 'story');
+    for (const line of lines) game.say(line, 'gold');
+    game.refreshParty();
+    game.autosave();
+    this.mainMenu();
+  }
+
+  /** Steps down into a dungeon, if the way is open and there is a party able to go. */
+  private usePortal(p: Portal): void {
+    const { game } = this;
+    // (A portal's flag is set by going through, not needed to open it.)
+    const why = lockedBecause(game.state, { key: p.key, feathers: p.feathers });
+    if (why) {
+      game.say(`${p.text} ${why}`, 'dim');
+      return;
+    }
+    if (game.party.length === 0 || !hasLivingParty(game)) {
+      game.say(game.party.length === 0 ? 'You need a party first. Visit the Guild to recruit heroes.' : 'Your whole party is dead. The Temple can help with that.', 'bad');
+      game.audio.sfx('error');
+      return;
+    }
+    game.say(p.text, 'story');
+    const target = content.dungeon(p.dungeon);
+    this.confirm(`Go down into ${target.name}?`, () => {
+      game.audio.sfx('stairs');
+      game.state.location = { dungeon: target.id, level: 0, ...target.levels[0].start };
+      this.story(p.flag);
+      game.go(dungeonScreen);
+      game.say(`You arrive on ${target.levels[0].name}.`, 'dim');
+      game.autosave();
+    });
+  }
+
+  /** The places the party can walk straight to: the ones everybody knows, and doors they have seen. */
+  private knownPlaces(): { x: number; y: number; special: Building | Portal }[] {
+    const explored = new Set(this.game.state.explored[levelKey(this.pos.dungeon, this.pos.level)] ?? []);
+    const out: { x: number; y: number; special: Building | Portal }[] = [];
+    for (const { x, y, special } of specialSquares(this.level)) {
+      if (special.kind === 'portal' || (special.kind === 'building' && special.place)) {
+        if (special.known || explored.has(`${x},${y}`)) out.push({ x, y, special });
+      }
+    }
+    return out;
+  }
+
+  /** "Go to": walk straight to a known door (the streets are safe) and go in. */
+  private goTo(): void {
+    this.modal = true;
+    const places = this.knownPlaces();
+    const used = new Set(['b', ...places.map((p) => p.special.hotkey ?? '')]);
+    const keyFor = (p: { special: Building | Portal }): string => {
+      if (p.special.hotkey) return p.special.hotkey;
+      const letters = p.special.name.toLowerCase().replace(/^the /, '').replace(/[^a-z]/g, '');
+      const k = [...letters].find((c) => !used.has(c)) ?? [...'123456789'].find((c) => !used.has(c)) ?? '0';
+      used.add(k);
+      return k;
+    };
+    const toReturn = this.game.state.feathers.length - this.game.state.offered;
+    const items: MenuItem[] = places.map((p) => ({
+      key: keyFor(p),
+      label: p.special.kind === 'building' && p.special.place === 'tower' && toReturn > 0 ? `${p.special.name} (${toReturn} to return)` : p.special.name,
+      action: () => this.travel(p),
+    }));
+    items.push({ key: 'b', label: 'Back', action: () => this.mainMenu() });
+    this.game.shell.setMenu(items, 'Go to...');
+  }
+
+  private travel(p: { x: number; y: number; special: Building | Portal }): void {
+    const level = this.level;
+    this.mainMenu();
+    this.anim = null;
+    this.queued = [];
+    if (p.special.kind === 'portal') {
+      Object.assign(this.pos, { x: p.x, y: p.y, dir: openDirection(level, p.x, p.y) });
+      this.explore();
+      this.refreshHud();
+      return this.usePortal(p.special);
+    }
+    // Stand in the street outside the door, facing it.
+    const d = DIRS.findIndex((dir) => isWalkable(this.at(p.x - dir.dx, p.y - dir.dy)));
+    const dir = d < 0 ? 0 : d;
+    Object.assign(this.pos, { x: p.x - DIRS[dir].dx, y: p.y - DIRS[dir].dy, dir });
+    this.explore();
+    this.refreshHud();
+    this.enterBuilding(p.special, this.camera(performance.now()));
   }
 
   private confirm(question: string, yes: () => void): void {
@@ -310,11 +558,15 @@ class DungeonView {
     const done = !!game.state.flags[flag];
     switch (special.kind) {
       case 'message':
-        game.say(special.text, 'story');
+        game.say(done && special.after ? special.after : special.text, 'story');
         if (!done) {
           game.state.flags[flag] = true;
           this.story(special.flag);
         }
+        return;
+      case 'portal':
+        return this.usePortal(special);
+      case 'building':
         return;
       case 'talk':
         if (done) {
@@ -344,8 +596,10 @@ class DungeonView {
         game.say(special.text, 'story');
         this.say(giveReward(game.state, { gold: special.gold, item: special.item, feather: special.feather }));
         game.audio.sfx('buy');
-        game.refreshParty();
         this.story(special.flag);
+        // An item found might be one a quest is waiting for.
+        this.say(questEvent(game.state, { kind: 'check' }));
+        game.refreshParty();
         return;
       case 'trap': {
         if (done) return;
@@ -411,15 +665,16 @@ class DungeonView {
       {
         key: 'p',
         label: 'Party sheet',
+        disabled: game.party.length === 0,
         action: () => openCharSheet(game, { onClose: () => { game.refreshParty(); back(); } }),
       },
-      { key: 'f', label: 'Formation', action: () => this.formation() },
+      { key: 'f', label: 'Formation', disabled: game.party.length === 0, action: () => this.formation() },
       { key: 'v', label: 'View map', action: () => this.bigMap() },
       { key: 'j', label: 'Journal', action: () => openJournal(game, () => this.camp()) },
       { key: 's', label: 'Save game', action: () => chooseSaveSlot(game, () => this.camp()) },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
-    game.shell.setMenu(items, 'Camp');
+    game.shell.setMenu(items, this.inCity ? 'Party and saving' : 'Camp');
     game.shell.setKeyHandler((e) => {
       if (e.key === 'Escape') {
         // Esc closes the formation or map panel first, then leaves camp.

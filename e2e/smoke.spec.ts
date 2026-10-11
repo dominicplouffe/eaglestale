@@ -20,14 +20,24 @@ test.afterEach(() => {
 const log = (page: Page) => page.locator('#log p');
 const menuTitle = (page: Page) => page.locator('#menu .menu-title');
 
-/** New game with the Guild's six ready-made heroes, standing in the town square. */
+/** New game with the Guild's six ready-made heroes, back out in the street. */
 async function startWithParty(page: Page): Promise<void> {
   await page.goto('/');
   await page.keyboard.press('n');
-  await page.keyboard.press('g');
+  // The game starts in Feather Square facing the Guild: two steps forward and in.
+  await expect(page.locator('#location')).toHaveText('Talonreach - Feather Square');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
   await page.getByRole('button', { name: 'Quick-start party' }).click();
   await page.keyboard.press('l');
-  await expect(page.locator('#location')).toHaveText(/Talonreach/);
+  await expect(page.locator('#location')).toHaveText('Talonreach - Market Street');
+}
+
+/** Walks straight to a place in town with Go to. */
+async function goTo(page: Page, key: string): Promise<void> {
+  await page.keyboard.press('g');
+  await expect(menuTitle(page)).toHaveText('Go to...');
+  await page.keyboard.press(key);
 }
 
 test('explore, camp, save, and continue the saved game', async ({ page }) => {
@@ -38,7 +48,8 @@ test('explore, camp, save, and continue the saved game', async ({ page }) => {
     const { content } = await import(/* @vite-ignore */ path);
     for (const level of content.dungeon('roost').levels) level.encounterRate = 0;
   });
-  await page.keyboard.press('d');
+  await goTo(page, 'r');
+  await page.keyboard.press('y');
   await expect(page.locator('#location')).toHaveText(/The Cellars/);
   for (const key of ['ArrowUp', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'ArrowUp']) await page.keyboard.press(key);
 
@@ -108,7 +119,7 @@ test('inspect a hero, compare gear and buy in the shop', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#inspect')).toBeHidden();
 
-  await page.keyboard.press('e');
+  await goTo(page, 'e');
   const chain = page.locator('#overlay .row', { hasText: 'Chain Mail' });
   await expect(chain.locator('.compare')).toHaveText('+2 def');
   await chain.getByRole('button', { name: 'Buy & equip' }).click();
@@ -125,6 +136,7 @@ test('the game still runs when the browser blocks site storage', async ({ page }
     });
   });
   await startWithParty(page);
+  await page.keyboard.press('c');
   await page.keyboard.press('s');
   await page.keyboard.press('1');
   await expect(log(page).last()).toHaveText(/Couldn't save/);
@@ -132,9 +144,9 @@ test('the game still runs when the browser blocks site storage', async ({ page }
 
 test('take a bounty and follow it in the journal', async ({ page }) => {
   await startWithParty(page);
-  await page.keyboard.press('w');
+  await goTo(page, 'w');
   await expect(log(page).last()).toHaveText(/perch stands empty/);
-  await page.keyboard.press('g');
+  await goTo(page, 'g');
   await page.keyboard.press('b');
   await page.locator('#overlay .row', { hasText: 'Rat Problem' }).getByRole('button', { name: 'Take' }).click();
   await expect(log(page).last()).toHaveText(/^New task: Rat Problem/);
@@ -144,4 +156,37 @@ test('take a bounty and follow it in the journal', async ({ page }) => {
   await expect(page.locator('#overlay h2')).toHaveText('Journal');
   await expect(page.locator('#overlay')).toContainText('The Plucked Eagle');
   await expect(page.locator('#overlay')).toContainText('Rat Problem');
+});
+
+test('walk the town: shops, the sewer grate, and down into the Gurgle and back', async ({ page }) => {
+  await startWithParty(page);
+  // Coming out of a building, the party faces the street.
+  await goTo(page, 't');
+  await expect(page.locator('#location')).toHaveText(/Temple/);
+  await page.keyboard.press('l');
+  await expect(page.locator('#location')).toHaveText('Talonreach - Temple Row');
+
+  // The sewer grate on Drain Street needs Grackle's key.
+  await page.evaluate(async () => {
+    const path = '/src/screens/dungeon.ts';
+    const { dungeonScreen } = await import(/* @vite-ignore */ path);
+    const game = (window as unknown as { __game: { state: { location: unknown }; go(s: unknown): void } }).__game;
+    game.state.location = { dungeon: 'talonreach', level: 0, x: 7, y: 19, dir: 3 };
+    game.go(dungeonScreen);
+  });
+  await page.keyboard.press('ArrowUp');
+  await expect(log(page).last()).toHaveText(/You need the Sewer Grate Key/);
+  await page.evaluate(() => {
+    const game = (window as unknown as { __game: { party: { inventory: string[] }[] } }).__game;
+    game.party[0].inventory.push('sewerkey');
+  });
+  await page.keyboard.press('e');
+  await expect(menuTitle(page)).toHaveText('Go down into The Gurgle?');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText('The Gurgle - The Overflow (level 1)');
+
+  // Back up the stairs: out of the grate, onto Drain Street.
+  await page.keyboard.press('e');
+  await page.keyboard.press('y');
+  await expect(page.locator('#location')).toHaveText('Talonreach - Drain Street');
 });

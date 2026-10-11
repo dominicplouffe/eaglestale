@@ -95,9 +95,27 @@ function advance(s: GameState, id: string): string[] {
 function finish(s: GameState, id: string): string[] {
   const q = content.quest(id);
   s.quests[id].status = 'done';
+  // Bounties take what was collected; other quests take only story items (the rest are the party's to keep).
+  handOver(s, q, q.source !== 'board');
   const out = [q.done, ...giveReward(s, q.reward)];
   for (const next of q.next ?? []) out.push(...startQuest(s, next));
   return out;
+}
+
+/** Removes the items a quest asked the party to collect. */
+function handOver(s: GameState, q: QuestDef, onlyStoryItems: boolean): void {
+  for (const step of q.steps) {
+    if (step.goal.kind !== 'collect' || (onlyStoryItems && !content.item(step.goal.item).quest)) continue;
+    let left = step.goal.count;
+    for (const c of party(s)) {
+      while (left > 0) {
+        const at = c.inventory.indexOf(step.goal.item);
+        if (at < 0) break;
+        c.inventory.splice(at, 1);
+        left -= 1;
+      }
+    }
+  }
 }
 
 /** Tells every active quest what happened. */
@@ -139,31 +157,21 @@ export function takeBounty(s: GameState, id: string): string[] {
 export function turnIn(s: GameState, id: string): string[] {
   const p = s.quests[id];
   if (!p || p.status !== 'ready') return [];
-  const q = content.quest(id);
-  for (const step of q.steps) {
-    if (step.goal.kind !== 'collect') continue;
-    let left = step.goal.count;
-    for (const c of party(s)) {
-      while (left > 0) {
-        const at = c.inventory.indexOf(step.goal.item);
-        if (at < 0) break;
-        c.inventory.splice(at, 1);
-        left -= 1;
-      }
-    }
-  }
   return finish(s, id);
 }
 
 // ---- Locks ----------------------------------------------------------------------------
 
 /** Why a locked door won't open yet, or null if the party has what it needs. */
-export function lockedBecause(s: GameState, lock: { key?: string; feathers?: number }): string | null {
+export function lockedBecause(s: GameState, lock: { key?: string; feathers?: number; flag?: string }): string | null {
   const missing: string[] = [];
   if (lock.key && itemCount(s, lock.key) === 0) missing.push(`the ${content.item(lock.key).name}`);
   const need = lock.feathers ?? 0;
   if (s.feathers.length < need) missing.push(`${need} of Aquila's feathers (you have ${s.feathers.length})`);
-  return missing.length ? `You need ${missing.join(' and ')}.` : null;
+  if (missing.length) return `You need ${missing.join(' and ')}.`;
+  // A flag lock's own text says what might open it (a wheel somewhere, say).
+  if (lock.flag && !s.story[lock.flag]) return "It won't budge.";
+  return null;
 }
 
 // ---- Rewards, feathers and the city ------------------------------------------------

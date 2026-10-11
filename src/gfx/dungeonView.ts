@@ -1,6 +1,7 @@
 import { DIRS, isWalkable, tileAt } from '../rules/dungeon';
 import type { DungeonLevel } from '../rules/types';
-import { LIGHT_LEVELS, TEX, texturesFor, type Texture } from './textures';
+import { mixRGB, parseHex, type RGB } from './colors';
+import { LIGHT_LEVELS, TEX, pack, texturesFor, type Texture } from './textures';
 
 /**
  * The first-person view: a column raycaster in the style of Wolfenstein 3D, drawn pixel by pixel
@@ -20,8 +21,10 @@ const FOV_TAN = 0.78;
 const WALL_PX = 118;
 /** How many squares a ray travels before giving up (it's pitch dark by then anyway). */
 const MAX_STEPS = 24;
-/** One wall face in this many gets a feature texture (torch, rune). */
-const FEATURE_EVERY = 7;
+/** Sprites closer than this are on the party's own square (the camera stands just behind its middle). */
+const SPRITE_NEAR = 0.55;
+/** Sprite drawings are this many pixels square. */
+const ART = 32;
 
 /** 4x4 ordered-dither thresholds: brightness between two light levels becomes a fine checker pattern. */
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
@@ -104,6 +107,16 @@ export function castRay(
   return { tile: '#', dist: MAX_STEPS, side: 0, cellX: mapX, cellY: mapY, u: 0, doors };
 }
 
+/** Something standing on a square (a person, a boss, a chest), drawn facing the camera. */
+export interface ViewSprite {
+  x: number;
+  y: number;
+  /** A 32x32 drawing as packed pixels (see artPixels); alpha 0 is see-through. */
+  pixels: Uint32Array;
+  /** Height in wall heights. */
+  scale: number;
+}
+
 export interface DungeonViewState {
   level: DungeonLevel;
   /** The square the party stands on; may be fractional while the camera glides between squares. */
@@ -114,12 +127,18 @@ export interface DungeonViewState {
   angle?: number;
   /** The squares as they are now (locks, secrets); defaults to the level grid. */
   at?: TileAt;
+  sprites?: ViewSprite[];
+  /** Outdoors: the sky's colour at the horizon (overrides the theme's, e.g. as the city recovers). */
+  sky?: string;
 }
 
 let image: ImageData | null = null;
 let pixels: Uint32Array | null = null;
 
-/** Draws one textured wall column; `masked` skips see-through texels (doorway openings). */
+/**
+ * Draws one textured wall column; `masked` skips see-through texels (doorway openings, battlements).
+ * Walls more than one storey tall stack the `above` faces (top storey first) on top of `tex`.
+ */
 function column(
   buf: Uint32Array,
   x: number,
@@ -129,20 +148,115 @@ function column(
   tex: Texture,
   flicker: number,
   masked: boolean,
+  above: Texture[] = [],
 ): void {
   const d = Math.max(dist, 0.05);
   const h = WALL_PX / d;
-  const top = HORIZON - h / 2;
+  const bottom = HORIZON + h / 2;
+  const storeys = above.length + 1;
+  const top = bottom - h * storeys;
   const y0 = Math.max(0, Math.ceil(top - 0.5));
-  const y1 = Math.min(VIEW_H, Math.ceil(top + h - 0.5));
+  const y1 = Math.min(VIEW_H, Math.ceil(bottom - 0.5));
   const tu = Math.min(TEX - 1, Math.floor(u * TEX));
   // North/south faces are a little darker, so corners read clearly.
   const light = lightAt(d, flicker) * (side === 1 ? 0.84 : 1);
   for (let y = y0; y < y1; y++) {
-    const tv = Math.min(TEX - 1, Math.floor(((y + 0.5 - top) / h) * TEX));
-    const texel = tex.levels[levelFor(light, x, y)][tv * TEX + tu];
+    const v = (y + 0.5 - top) / h;
+    const storey = Math.min(storeys - 1, Math.floor(v));
+    const t = storey < above.length ? above[storey] : tex;
+    const tv = Math.min(TEX - 1, Math.floor((v - storey) * TEX));
+    const texel = t.levels[levelFor(light, x, y)][tv * TEX + tu];
     if (masked && texel >>> 24 === 0) continue;
     buf[y * VIEW_W + x] = texel;
+  }
+}
+
+/** Soft clouds all round the horizon: an alpha map, `CLOUD_W` wide for a full turn. */
+const CLOUD_W = 720;
+let clouds: Float32Array | null = null;
+
+function cloudMap(): Float32Array {
+  if (clouds) return clouds;
+  const h = VIEW_H / 2;
+  clouds = new Float32Array(CLOUD_W * h);
+  // A few octaves of smooth value noise that wrap round the full turn.
+  const lattice = (size: number, seed: number): ((x: number, y: number) => number) => {
+    const cols = Math.max(1, Math.round(CLOUD_W / size));
+    const rows = Math.ceil(h / size) + 2;
+    const v = Array.from({ length: cols * rows }, (_, i) => {
+      const n = Math.sin((i + 1) * 12.9898 + seed * 78.233) * 43758.5453;
+      return n - Math.floor(n);
+    });
+    const at = (cx: number, cy: number): number => v[(((cx % cols) + cols) % cols) + Math.min(rows - 1, cy) * cols];
+    return (x, y) => {
+      const fx = x / size;
+      const fy = y / size;
+      const ix = Math.floor(fx);
+      const iy = Math.floor(fy);
+      const sx = (fx - ix) * (fx - ix) * (3 - 2 * (fx - ix));
+      const sy = (fy - iy) * (fy - iy) * (3 - 2 * (fy - iy));
+      const top = at(ix, iy) + (at(ix + 1, iy) - at(ix, iy)) * sx;
+      const bottom = at(ix, iy + 1) + (at(ix + 1, iy + 1) - at(ix, iy + 1)) * sx;
+      return top + (bottom - top) * sy;
+    };
+  };
+  const octaves = [lattice(90, 1), lattice(40, 2), lattice(16, 3)];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < CLOUD_W; x++) {
+      const n = octaves[0](x, y * 2.2) * 0.55 + octaves[1](x, y * 2.2) * 0.3 + octaves[2](x, y * 2) * 0.15;
+      // Thicker towards the horizon, thin overhead.
+      clouds[y * CLOUD_W + x] = Math.max(0, Math.min(1, (n - 0.48) * 3)) * (0.35 + 0.65 * (y / h));
+    }
+  }
+  return clouds;
+}
+
+const darken = (c: RGB, f: number): RGB => [c[0] * f, c[1] * f, c[2] * f];
+
+/** Fills the top half with sky: a gradient to `horizon`, with clouds that turn with the view. */
+function drawSky(buf: Uint32Array, horizon: string, angle: number): void {
+  const base = parseHex(horizon);
+  const top = mixRGB(darken(base, 0.62), [40, 50, 96], 0.25);
+  const cloud = mixRGB(base, [250, 248, 240], 0.45);
+  const map = cloudMap();
+  const offsets = new Int32Array(VIEW_W);
+  for (let x = 0; x < VIEW_W; x++) {
+    const camX = (2 * (x + 0.5)) / VIEW_W - 1;
+    const a = angle + Math.atan(camX * FOV_TAN);
+    offsets[x] = ((Math.floor((a / (Math.PI * 2)) * CLOUD_W) % CLOUD_W) + CLOUD_W) % CLOUD_W;
+  }
+  for (let y = 0; y < HORIZON; y++) {
+    const sky = mixRGB(top, base, Math.pow(y / HORIZON, 1.4));
+    for (let x = 0; x < VIEW_W; x++) {
+      const c = mixRGB(sky, cloud, map[y * CLOUD_W + offsets[x]]);
+      buf[y * VIEW_W + x] = pack(c[0], c[1], c[2]);
+    }
+  }
+}
+
+interface ProjectedSprite {
+  sprite: ViewSprite;
+  depth: number;
+  left: number;
+  size: number;
+  /** Screen row of the floor under it (where its feet go). */
+  floor: number;
+}
+
+/** Draws the part of a sprite in screen column `x`. */
+function spriteColumn(buf: Uint32Array, x: number, p: ProjectedSprite, flicker: number): void {
+  const tu = Math.floor(((x + 0.5 - p.left) / p.size) * ART);
+  if (tu < 0 || tu >= ART) return;
+  const top = p.floor - p.size;
+  const y0 = Math.max(0, Math.ceil(top - 0.5));
+  const y1 = Math.min(VIEW_H, Math.ceil(p.floor - 0.5));
+  const light = lightAt(p.depth, flicker);
+  for (let y = y0; y < y1; y++) {
+    const tv = Math.min(ART - 1, Math.floor(((y + 0.5 - top) / p.size) * ART));
+    const texel = p.sprite.pixels[tv * ART + tu];
+    if (texel >>> 24 === 0) continue;
+    const f = levelFor(light, x, y) / LIGHT_LEVELS;
+    buf[y * VIEW_W + x] = pack((texel & 255) * f, ((texel >>> 8) & 255) * f, ((texel >>> 16) & 255) * f);
   }
 }
 
@@ -169,6 +283,8 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
   const posY = v.y + 0.5 - dirY * CAMERA_BACK;
   const flicker = 0.97 + 0.03 * Math.sin(t * 9) * Math.sin(t * 5.3);
   const frame = Math.floor(t * 5) % 2;
+  const sky = v.sky ?? level.theme.sky;
+  if (sky) drawSky(buf, sky, angle);
 
   // Floor and ceiling: each screen row below the horizon is one distance; the ceiling mirrors it.
   for (let y = HORIZON; y < VIEW_H; y++) {
@@ -188,23 +304,56 @@ export function renderDungeon(ctx: CanvasRenderingContext2D, v: DungeonViewState
       const floorTex = tile === '>' ? tex.stairsDown : tile === '<' ? tex.stairsUpFloor : plain;
       const ceilTex = tile === '<' ? tex.hatch : tex.ceiling;
       buf[y * VIEW_W + x] = floorTex.levels[levelFor(light * 0.92, x, y)][ti];
-      buf[cy * VIEW_W + x] = ceilTex.levels[levelFor(light * 0.8, x, cy)][ti];
+      if (!sky) buf[cy * VIEW_W + x] = ceilTex.levels[levelFor(light * 0.8, x, cy)][ti];
     }
   }
 
-  // Walls, then any doorway arches in front of them (far to near, so nearer arches cover farther ones).
+  // Sprites: where each one lands on screen. Depth is measured along the view direction, like walls.
+  const det = dirX * planeY - planeX * dirY;
+  const projected: ProjectedSprite[] = [];
+  for (const sp of v.sprites ?? []) {
+    const relX = sp.x + 0.5 - posX;
+    const relY = sp.y + 0.5 - posY;
+    const depth = (relX * planeY - planeX * relY) / det;
+    if (depth < SPRITE_NEAR) continue;
+    const across = (dirX * relY - relX * dirY) / det;
+    const size = (WALL_PX / depth) * sp.scale;
+    const centre = ((across / depth + 1) / 2) * VIEW_W;
+    projected.push({ sprite: sp, depth, left: centre - size / 2, size, floor: HORIZON + WALL_PX / (2 * depth) });
+  }
+
+  // Walls, then the doorway arches and sprites in front of them, far to near, so nearer ones cover farther ones.
+  const layers: { dist: number; draw: () => void }[] = [];
   for (let x = 0; x < VIEW_W; x++) {
     const camX = (2 * (x + 0.5)) / VIEW_W - 1;
     const rayX = dirX + planeX * camX;
     const rayY = dirY + planeY * camX;
     const hit = castRay(level, posX, posY, rayX, rayY, at);
     const featured = ((hit.cellX * 73856093) ^ (hit.cellY * 19349663) ^ (hit.side * 83492791)) >>> 0;
-    const wallTex = hit.tile === '=' ? tex.doorShut : featured % FEATURE_EVERY === 0 ? tex.feature[frame] : tex.wall;
-    column(buf, x, hit.dist, hit.side, hit.u, wallTex, flicker, false);
-    for (let i = hit.doors.length - 1; i >= 0; i--) {
-      const d = hit.doors[i];
-      column(buf, x, d.dist, d.side, d.u, tex.door, flicker, true);
+    const mark = level.landmarks?.find((m) => hit.cellX >= m.x && hit.cellX < m.x + m.w && hit.cellY >= m.y && hit.cellY < m.y + m.h);
+    let wallTex = featured % tex.featureEvery === 0 ? tex.feature[frame] : tex.wall;
+    if (hit.tile === '=') wallTex = tex.doorShut;
+    else if (hit.tile === '&') {
+      const door = level.specials[tileAt(level, hit.cellX, hit.cellY)];
+      wallTex = (door?.kind === 'building' && door.place && tex.signs[door.place]) || tex.buildingDoor;
     }
+    if (mark) {
+      // A landmark: its own stone, taller than the houses (with see-through battlements, say).
+      const lm = tex.landmarks[mark.look];
+      // Grand buildings are regular: their faces simply alternate along the wall.
+      const above = lm.above.map((faces, i) => faces[(hit.cellX + hit.cellY + i) % faces.length]);
+      column(buf, x, hit.dist, hit.side, hit.u, hit.tile === '&' ? lm.door : lm.ground, flicker, true, above);
+    } else {
+      const above = tex.upper.length ? [tex.upper[(featured >>> 3) % tex.upper.length]] : [];
+      column(buf, x, hit.dist, hit.side, hit.u, wallTex, flicker, false, above.slice(0, tex.storeys - 1));
+    }
+    layers.length = 0;
+    for (const d of hit.doors) layers.push({ dist: d.dist, draw: () => column(buf, x, d.dist, d.side, d.u, tex.door, flicker, true) });
+    for (const p of projected) {
+      if (p.depth < hit.dist && x >= p.left - 1 && x <= p.left + p.size) layers.push({ dist: p.depth, draw: () => spriteColumn(buf, x, p, flicker) });
+    }
+    layers.sort((a, b) => b.dist - a.dist);
+    for (const l of layers) l.draw();
   }
 
   ctx.putImageData(image, 0, 0);
