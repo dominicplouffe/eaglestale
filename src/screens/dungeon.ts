@@ -275,7 +275,7 @@ class DungeonView {
           { key: 'e', label: 'Go down here', action: () => this.useStairs() },
           { key: 'g', label: 'Go to...', action: () => this.goTo() },
           { key: 'j', label: 'Journal', action: () => this.journal() },
-          { key: 'c', label: 'Party and saving', action: () => this.camp() },
+          { key: 'c', label: 'Party, save', action: () => this.camp() },
           { key: 'q', label: 'Quit to title', action: () => this.quit() },
         ],
         `Gold: ${this.game.state.gold}`,
@@ -676,7 +676,7 @@ class DungeonView {
       { key: 's', label: 'Save game', action: () => chooseSaveSlot(game, () => this.camp()) },
       { key: 'b', label: 'Back to exploring', action: back },
     ];
-    game.shell.setMenu(items, this.inCity ? 'Party and saving' : 'Camp');
+    game.shell.setMenu(items, this.inCity ? 'Party, map, save' : 'Camp');
     game.shell.setKeyHandler((e) => {
       if (e.key === 'Escape') {
         // Esc closes the formation or map panel first, then leaves camp.

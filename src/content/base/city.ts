@@ -6,6 +6,7 @@ import type { DungeonDef, Look } from '../../rules/types';
  * other doors just answer back. `portal` squares lead down into the dungeons.
  */
 
+// Building and portal names are what Go to lists, so they are kept short.
 const townsfolk = (palette: Record<string, string>): Look => ({ art: 'townsfolk', palette });
 
 export const talonreach: DungeonDef = {
@@ -73,15 +74,15 @@ export const talonreach: DungeonDef = {
       ],
       specials: {
         // ---- The places everybody knows ----
-        G: { kind: 'building', name: 'Guild of Questionable Heroes', place: 'guild', known: true, hotkey: 'g' },
+        G: { kind: 'building', name: 'The Guild', place: 'guild', known: true, hotkey: 'g' },
         W: { kind: 'building', name: 'Eagle Tower', place: 'tower', known: true, hotkey: 'w' },
-        E: { kind: 'building', name: "Dusty Gizzard's Emporium", place: 'shop', known: true, hotkey: 'e' },
-        T: { kind: 'building', name: 'Temple of the Gentle Peck', place: 'temple', known: true, hotkey: 't' },
-        I: { kind: 'building', name: 'The Drowsy Hen Inn', place: 'inn', known: true, hotkey: 'i' },
+        E: { kind: 'building', name: 'The Emporium', place: 'shop', known: true, hotkey: 'e' },
+        T: { kind: 'building', name: 'The Temple', place: 'temple', known: true, hotkey: 't' },
+        I: { kind: 'building', name: 'The Inn', place: 'inn', known: true, hotkey: 'i' },
         R: {
           kind: 'portal',
           dungeon: 'roost',
-          name: 'Steps down to the Roost',
+          name: 'Roost steps',
           text: 'Worn steps beside the Eagle Tower lead down into the Roost Below, where the cult has dug in.',
           known: true,
           hotkey: 'r',
@@ -89,7 +90,7 @@ export const talonreach: DungeonDef = {
         U: {
           kind: 'portal',
           dungeon: 'gurgle',
-          name: 'The sewer grate',
+          name: 'Sewer grate',
           text: 'A heavy iron grate in Drain Street, locked with a great padlock. Below it, something gurgles.',
           key: 'sewerkey',
           flag: 'gurgle-entered',
