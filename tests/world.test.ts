@@ -97,6 +97,18 @@ describe('party and saves', () => {
     expect(deserialize(JSON.stringify({ ...s, version: 0 }))).toMatchObject({ ok: false, reason: /version 0/ });
   });
 
+  it('gives a save that finished the story before Mount Talon existed the way up', () => {
+    const s = startingState();
+    s.won = true;
+    s.quests = { 'mq-spire': { step: 3, count: 0, status: 'done' } };
+    const loaded = deserialize(serialize(s));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.state.story['aquila-home']).toBe(true);
+    expect(loaded.state.quests['mq-nest']?.status).toBe('active');
+    expect(loaded.notes.some((n) => n.includes("Aquila's Old Nest"))).toBe(true);
+  });
+
   it('repairs saves that refer to content that no longer exists', () => {
     const s = startingState();
     const hero = makeHero('knight', 'Bonk');

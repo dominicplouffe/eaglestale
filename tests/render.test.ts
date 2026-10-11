@@ -4,6 +4,7 @@ import { ART_SIZE, artDef } from '../src/gfx/art';
 import { PORTRAIT_DATA } from '../src/gfx/art/portraits';
 import { BUST } from '../src/gfx/portrait';
 import { castRay } from '../src/gfx/dungeonView';
+import { texturesFor } from '../src/gfx/textures';
 import { textWidth } from '../src/gfx/font';
 import type { DungeonLevel } from '../src/rules/types';
 
@@ -88,6 +89,27 @@ describe('monster art', () => {
         for (const ch of row) if (ch !== '.') expect(def.colors[ch], `${m.sprite} key "${ch}"`).toBeDefined();
       }
     }
+  });
+});
+
+describe('textures', () => {
+  it('paints every theme in the game', () => {
+    for (const d of content.dungeons.values()) {
+      for (const level of d.levels) {
+        const t = texturesFor(level.theme);
+        expect(t.wall.levels.length, `${d.id} ${level.name}`).toBeGreaterThan(0);
+        expect(t.top.length).toBe(level.theme.style === 'forest' || level.theme.style === 'mountain' ? 2 : 0);
+      }
+    }
+  });
+
+  it('gives mountains three storeys of cliff, ragged against the sky at the top', () => {
+    const t = texturesFor({ wall: '#7a7480', floor: '#dfe6ee', ceiling: '#000000', door: '#f4f8fc', style: 'mountain', sky: '#8ec0f0' });
+    expect(t.storeys).toBe(3);
+    const top = t.top[0].levels[t.top[0].levels.length - 1];
+    // Some of the top row is sky (transparent), and none of the bottom row is.
+    expect([...top.slice(0, 32)].some((px) => px === 0)).toBe(true);
+    expect([...top.slice(31 * 32)].every((px) => px !== 0)).toBe(true);
   });
 });
 

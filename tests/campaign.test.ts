@@ -73,6 +73,13 @@ describe('the campaign', () => {
     expect(home.some((line) => line.includes('Aquila is home'))).toBe(true);
     expect(s.quests['mq-spire'].status).toBe('done');
     expect(s.won).toBe(true);
+
+    // After the ending: the North Gate opens, and Mount Talon waits.
+    expect(s.story['aquila-home']).toBe(true);
+    expect(main(s)).toBe('mq-nest');
+    questEvent(s, { kind: 'flag', flag: 'nest-entered' });
+    questEvent(s, { kind: 'flag', flag: 'changeling-defeated' });
+    expect(s.quests['mq-nest'].status).toBe('done');
     expect(main(s)).toBeUndefined();
   });
 
@@ -94,9 +101,14 @@ describe('the campaign', () => {
     expect(hero.inventory).toContain('gatorarmor');
   });
 
-  it('every main quest leads on to the next, and exactly one ends the game', () => {
+  it('the main quests run in one line from the start, through the ending, to the last', () => {
     const main = [...content.quests.values()].filter((q) => q.kind === 'main');
-    for (const q of main) if (!q.ending) expect(q.next?.length ?? 0, q.id).toBeGreaterThan(0);
+    const line: string[] = [];
+    for (let q = main.find((m) => m.source === 'start'); q; ) {
+      line.push(q.id);
+      q = q.next?.map((id) => content.quest(id)).find((n) => n.kind === 'main');
+    }
+    expect([...line].sort()).toEqual(main.map((q) => q.id).sort());
     expect(main.filter((q) => q.ending)).toHaveLength(1);
   });
 });

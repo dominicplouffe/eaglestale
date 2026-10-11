@@ -3,6 +3,7 @@ import { PEOPLE_ART } from './art/people';
 import { SEWER_ART } from './art/sewer';
 import { CLOCKWORK_ART } from './art/clockwork';
 import { WILD_ART } from './art/wild';
+import { MOUNTAIN_ART } from './art/mountain';
 import { mixRGB, parseHex, ramp, toHex } from './colors';
 
 /**
@@ -36,6 +37,7 @@ registerArt(PEOPLE_ART);
 registerArt(SEWER_ART);
 registerArt(CLOCKWORK_ART);
 registerArt(WILD_ART);
+registerArt(MOUNTAIN_ART);
 
 export const hasArt = (name: string): boolean => registry.has(name);
 export const artDef = (name: string): ArtDef | undefined => registry.get(name);

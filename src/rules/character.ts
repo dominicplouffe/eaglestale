@@ -23,8 +23,24 @@ export const mod = (value: number): number => Math.floor((value - 10) / 2);
 
 export const isAlive = (c: Character): boolean => c.hp > 0;
 
+/** Past this level, each level takes LATE_LEVEL_GROWTH times the XP of the one before. */
+const LATE_LEVEL = 10;
+const LATE_LEVEL_GROWTH = 1.4;
+
+/**
+ * XP needed to reach `level`. Up to level 10 each level costs 200 XP more than the last; after that
+ * each costs 1.4 times the last, so a party that explores every corner gets a level or two ahead
+ * of the story, not ten. (tests/progression.test.ts checks this against the whole campaign.)
+ */
 export function xpForLevel(level: number, xpMult: number): number {
-  return level <= 1 ? 0 : Math.round(100 * xpMult * (level - 1) * level);
+  if (level <= 1) return 0;
+  let total = 100 * Math.min(level - 1, LATE_LEVEL - 1) * Math.min(level, LATE_LEVEL);
+  let step = 200 * (LATE_LEVEL - 1);
+  for (let l = LATE_LEVEL + 1; l <= level; l++) {
+    step *= LATE_LEVEL_GROWTH;
+    total += step;
+  }
+  return Math.round(total * xpMult);
 }
 
 export function xpToNext(c: Character): number | null {

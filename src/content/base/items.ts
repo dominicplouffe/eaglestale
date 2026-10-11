@@ -132,4 +132,16 @@ export const items: ItemDef[] = [
   { id: 'rocmantle', name: 'Roc-Feather Mantle', desc: 'A mantle of the Storm Roc\'s dark feathers. Arrows curve away from it.', price: 6400, slot: 'trinket', ac: 6 },
   { id: 'falconerglove', name: "Falconer's Gauntlets", desc: "Wren's gift: leather gauntlets that an eagle can perch on.", price: 3200, slot: 'hands', ac: 4 },
   { id: 'catseye', name: "Cat's-Eye Charm", desc: 'From Mother Plover. Its green stone seems to watch your back.', price: 600, slot: 'trinket', ac: 2 },
+  // Mount Talon and Aquila's old nest: legendary gear, found and won, never sold.
+  { id: 'windbow', name: 'The Windbow', desc: 'Strung with a strand of the north wind. Arrows go wherever you look.', price: 8400, slot: 'weapon', proficiency: 'bow', damage: [3, 8, 6], hit: 5, ranged: true },
+  { id: 'eyrieplate', name: 'Eyrie Plate', desc: "Queen Skreel's treasure: white-gold plate, light as down and harder than the mountain.", price: 11000, slot: 'body', proficiency: 'heavy', ac: 13 },
+  { id: 'cloudrobe', name: 'Cloudweave Robe', desc: 'Woven from the clouds that snag on Mount Talon. Blows just drift through it.', price: 8000, slot: 'body', proficiency: 'robe', ac: 9 },
+  { id: 'zephyrcloak', name: 'Zephyr Cloak', desc: "Dame Hortensia's spare: a cloak that the wind itself holds up.", price: 8000, slot: 'body', proficiency: 'light', ac: 9 },
+  { id: 'skystaff', name: 'Skyfall Staff', desc: 'A staff of white ash, struck by lightning and none the worse for it.', price: 8000, slot: 'weapon', proficiency: 'staff', damage: [3, 10, 6], hit: 4 },
+  { id: 'peakbreaker', name: 'Peakbreaker', desc: 'A hammer of mountain iron. They say it once knocked the top off a smaller mountain.', price: 9000, slot: 'weapon', proficiency: 'mace', damage: [4, 8, 7], hit: 3 },
+  { id: 'aquilastalon', name: "Aquila's Talon", desc: 'A blade made from a talon the Great Eagle shed in her old nest. It hums like wind over a ridge.', price: 10000, slot: 'weapon', proficiency: 'sword', damage: [4, 8, 6], hit: 4 },
+  { id: 'aquilasgaze', name: "Aquila's Gaze", desc: "Brother Tumble's gift: a circlet of golden feathers. Nothing sneaks up on its wearer.", price: 7000, slot: 'head', ac: 6 },
+  { id: 'malacharshat', name: "Malachar's Hat", desc: 'Tall, purple, slightly singed, and still warm from the Changeling. Old hexes crackle in the brim.', price: 12000, slot: 'trinket', ac: 7 },
+  { id: 'cragplume', name: 'Crag Eagle Plume', desc: 'A golden plume from a crag eagle. The Guild knows a hatter who wants them.', price: 40 },
+  { id: 'iceaxe', name: "Hortensia's Ice Axe", desc: 'A well-loved ice axe with a name scratched in the handle: HORTENSIA. HANDS OFF.', price: 0, quest: true },
 ];

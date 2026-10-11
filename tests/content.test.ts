@@ -118,6 +118,25 @@ describe('content integrity', () => {
     });
   });
 
+  it('every way that waits on a story flag can open: a quest or something in a dungeon sets it', () => {
+    const set = new Set<string>();
+    for (const q of content.quests.values()) if (q.flag) set.add(q.flag);
+    for (const d of content.dungeons.values()) {
+      for (const level of d.levels) {
+        for (const s of Object.values(level.specials)) {
+          if ((s.kind === 'message' || s.kind === 'talk' || s.kind === 'fight' || s.kind === 'treasure') && s.flag) set.add(s.flag);
+        }
+      }
+    }
+    for (const d of content.dungeons.values()) {
+      for (const level of d.levels) {
+        for (const s of Object.values(level.specials)) {
+          if ((s.kind === 'portal' || s.kind === 'building') && s.needs) expect(set.has(s.needs), `${s.name} needs ${s.needs}`).toBe(true);
+        }
+      }
+    }
+  });
+
   it('a finale fight, wherever there is one, sits on the last level of its dungeon', () => {
     let finales = 0;
     for (const d of content.dungeons.values()) {

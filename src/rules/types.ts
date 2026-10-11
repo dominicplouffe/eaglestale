@@ -245,6 +245,8 @@ export type Special =
       feathers?: number;
       /** Set the first time the party goes in; after that the door stays open. */
       flag?: string;
+      /** A story flag that must be set before it opens at all (e.g. one a quest sets when it is done). */
+      needs?: string;
       /** Said as the party goes in. */
       opened?: string;
       /** Listed under Go to from the start (the places everyone in town knows); others once seen. */
@@ -262,6 +264,8 @@ export type Special =
       feathers?: number;
       /** Set the first time the party goes through; after that the way stays open. */
       flag?: string;
+      /** A story flag that must be set before it opens at all. */
+      needs?: string;
       known?: boolean;
       hotkey?: string;
     }
@@ -319,10 +323,11 @@ export interface DungeonTheme {
   /**
    * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
    * blocks), 'rune' (dressed stone with glowing runes), 'sewer' (wet brick and pipes), 'city'
-   * (timber-framed houses on cobbles), 'clockwork' (brass plates, panelling and turning gears) or
-   * 'forest' (tall trees whose canopy meets the sky). Defaults to 'brick'.
+   * (timber-framed houses on cobbles), 'clockwork' (brass plates, panelling and turning gears),
+   * 'forest' (tall trees whose canopy meets the sky) or 'mountain' (rock cliffs rising to snowy
+   * peaks; `door` is the snow). Defaults to 'brick'.
    */
-  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city' | 'clockwork' | 'forest';
+  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city' | 'clockwork' | 'forest' | 'mountain';
   /** Outdoors: the colour of the sky where it meets the rooftops (there is no ceiling). */
   sky?: string;
   /** Outdoors: how bright it is even far away (0-1; under trees it's darker than in the street). */
@@ -399,6 +404,8 @@ export interface QuestDef {
   done: string;
   /** Quests that start when this one is finished (how the main story moves on). */
   next?: string[];
+  /** A story flag set when it is finished (to open a way somewhere new, say). */
+  flag?: string;
   /** Finishing it ends the game: the victory screen follows. */
   ending?: boolean;
 }

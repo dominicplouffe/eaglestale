@@ -426,7 +426,7 @@ class DungeonView {
     const backTo = `Go back to ${outside?.levels[exit?.level ?? 0].name ?? 'the way out'}?`;
     const question = toTown
       ? outside?.city && !outdoors ? (tower ? 'Go back down to the street?' : 'Climb back up to Talonreach?') : backTo
-      : outdoors ? (goingUp ? 'Go back the way you came?' : `Go on, deeper into ${this.dungeon.name}?`)
+      : outdoors ? (goingUp ? 'Go back the way you came?' : tower ? `Climb on, higher up ${this.dungeon.name}?` : `Go on, deeper into ${this.dungeon.name}?`)
       : goingUp === !tower ? 'Climb the stairs up?' : 'Go down the stairs?';
     this.confirm(question, () => {
       this.game.audio.sfx('stairs');
@@ -510,7 +510,7 @@ class DungeonView {
     const dungeonId = way.dungeon as string;
     const intro = way.kind === 'portal' ? way.text : (way.text ?? way.name);
     const open = !!way.flag && !!game.state.story[way.flag];
-    const why = open ? null : lockedBecause(game.state, { key: way.key, feathers: way.feathers });
+    const why = open ? null : lockedBecause(game.state, { key: way.key, feathers: way.feathers, flag: way.needs });
     if (why) {
       game.say(`${intro} ${why}`, 'dim');
       if (bumpFrom) {
@@ -526,7 +526,9 @@ class DungeonView {
     }
     game.say(way.kind === 'building' ? (way.opened ?? intro) : intro, 'story');
     const target = content.dungeon(dungeonId);
-    const verb = target.city ? 'Go home to' : way.kind === 'building' ? 'Go into' : target.ascending ? 'Go up into' : 'Go down into';
+    // An outdoor place that goes up is a mountain: you climb it.
+    const climb = target.ascending && !!target.levels[0].theme.sky;
+    const verb = target.city ? 'Go home to' : climb ? 'Climb' : way.kind === 'building' ? 'Go into' : target.ascending ? 'Go up into' : 'Go down into';
     this.confirm(`${verb} ${target.name}?`, () => {
       game.audio.sfx('stairs');
       game.state.location = { dungeon: target.id, level: 0, ...target.levels[0].start };
