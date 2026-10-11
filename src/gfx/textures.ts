@@ -841,18 +841,21 @@ function snowGround(p: Paint, rng: Rng, snow: RGB): void {
   }
 }
 
-/** Pilgrims' prayer flags strung across the rock (two frames: they flap in the wind). */
-function prayerFlags(base: Paint, frame: number): Paint {
+/** Icicles hanging from an overhang of rock (two frames: the light glints along them). */
+function icicles(base: Paint, frame: number, snow: RGB): Paint {
   const p = base.copy();
-  const colours: RGB[] = [[200, 50, 50], [230, 200, 60], [60, 150, 80], [60, 100, 200], [235, 235, 235]];
-  const line = (x: number) => 8 - Math.round(Math.abs(x - 15.5) / 5);
-  for (let x = 0; x < TEX; x++) p.set(x, line(x), [60, 50, 40]);
-  for (let i = 0; i < 6; i++) {
-    const x0 = 1 + i * 5;
-    const sway = (frame + i) % 2;
-    p.rect(x0 + sway, line(x0 + 1) + 1, 3, 4, colours[i % colours.length]);
-    p.set(x0 + 2 + sway, line(x0 + 1) + 4, mul(colours[i % colours.length], 0.7));
-  }
+  p.rect(0, 4, TEX, 2, mul(snow, 0.95));
+  p.rect(0, 6, TEX, 1, [70, 70, 84]);
+  const ice: RGB = [190, 220, 240];
+  [[2, 9], [5, 6], [8, 12], [12, 7], [15, 14], [19, 8], [22, 11], [26, 6], [29, 10]].forEach(([x, len], i) => {
+    for (let k = 0; k < len; k++) {
+      const shade = 1.05 - k * 0.03;
+      p.set(x, 7 + k, mul(ice, shade));
+      if (k < len - 3) p.set(x + 1, 7 + k, mul(ice, shade * 0.8));
+    }
+    // The glint runs down alternate icicles on alternate frames.
+    if (i % 2 === frame) p.set(x, 8 + Math.floor(len / 3), [250, 254, 255], true);
+  });
   return p;
 }
 
@@ -957,7 +960,7 @@ function build(theme: DungeonTheme): ThemeTextures {
     : style === 'sewer' ? [pipe(wall, 0), pipe(wall, 1)]
     : style === 'clockwork' ? [wallGear(wall, 0, wallC), wallGear(wall, 1, wallC)]
     : style === 'forest' ? [forestFeature(wall, 0), forestFeature(wall, 1)]
-    : style === 'mountain' ? [prayerFlags(wall, 0), prayerFlags(wall, 1)]
+    : style === 'mountain' ? [icicles(wall, 0, parse(theme.door)), icicles(wall, 1, parse(theme.door))]
     : [sconce(wall, 0), sconce(wall, 1)];
   const leaves = parse(theme.door);
   const upper =

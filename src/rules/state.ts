@@ -1,7 +1,7 @@
 import { content } from '../content/registry';
 import { MAX_PARTY } from './character';
 import { isWalkable, tileAt } from './dungeon';
-import { catchUpQuests, isTrophy, recoverStoryItems, startOpeningQuests, type QuestProgress } from './quests';
+import { catchUpQuests, isTrophy, recoverStoryItems, repairQuests, startOpeningQuests, type QuestProgress } from './quests';
 import { SLOTS, type Character } from './types';
 
 export interface DungeonPosition {
@@ -222,6 +222,7 @@ function checkContent(state: GameState): LoadResult {
   state.feathers = state.feathers.filter((id) => content.feathers.has(id));
   // New content may bring new opening quests (e.g. a new chapter): start them for old saves too.
   notes.push(...[...startOpeningQuests(state), ...catchUpQuests(state)].filter((line) => line.startsWith('New')));
+  repairQuests(state);
   // Story items once lost to a full pack come back, so the story can't get stuck.
   notes.push(...recoverStoryItems(state));
   const loc = state.location;

@@ -110,7 +110,9 @@ Everything the player sees as *content* is data. Add or change it without touchi
   `fight` (a scripted battle with a reward), `lock` (needs a `key` item, a number of `feathers` and/or a story `flag`,
   e.g. one a wheel sets somewhere else), `secret` (a wall that opens when walked into) or `talk` (someone who can start
   a `quest`, with a `look` so they can be seen standing there) or `teleport` (a tube or lift to the square marked `to`,
-  on another `level` if given, working only once its `flag` is set). Any of them can set a story `flag`. A `fight` with
+  on another `level` if given, working only once its `flag` is set). Any of them can set a story `flag`. A `talk` or
+  `message` special can have a `look` (so it can be seen from down a corridor: a songbird's cage, a bell, a flagpole) and
+  a `lookDone` for once it has been dealt with (the cage open, the flags hung). A `fight` with
   `finale: true` ends the game, and one with an `assist` brings an ally in on a given round (Aquila, at Malachar: she strikes
   every foe, heals the party and raises the fallen). A level's `theme` colours (and `style`: `brick`, `stone`, `rune`, `sewer`,
   `city`, `clockwork`, `forest` or `mountain`) decide how its textures are painted; a `sky` puts it outdoors, with `light`
@@ -124,7 +126,9 @@ Everything the player sees as *content* is data. Add or change it without touchi
   `sky` colour puts the level outdoors. A `portal` can also sit inside a dungeon (the path from the Thorn Grove to the
   Spire); leaving a dungeon brings the party back to the way they came in, wherever it is.
 - **Quests, feathers and the city**: `src/content/base/campaign.ts`. A quest is a list of steps, each with a goal:
-  `kill` a number of a monster, `collect` items, reach a story `flag`, find or `offered` a number of `feathers`.
+  `kill` a number of a monster, `collect` items, reach a story `flag` (or several `flags`, in any order: three cages to
+  open, with a `verb` for the progress line), find or `offered` a number of `feathers`. Counted goals say how far along
+  they are, in the Journal and as they move: "1 of 3 freed, 2 to go".
   Its `source` says how it starts: at the beginning (`start`), on the Guild's bounty board (`board`, optionally
   unlocked by earlier quests or a feather count), or `given` by a `talk` special or by another quest's `next`.
   `feathers` lists the feathers to find, and `cityStages` says what changes in town (text, and extra shop stock) as feathers come home.

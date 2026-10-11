@@ -23,6 +23,8 @@ const prayerFlag = (n: number, text: string) => ({
   text,
   after: "Brother Tumble's prayer flags flap in the wind, back where they belong.",
   flag: `prayer-flag-${n}`,
+  look: { art: 'flagpole' },
+  lookDone: { art: 'flagpolehung' },
 });
 
 // ---- The Pilgrims' Road ---------------------------------------------------------------
@@ -148,7 +150,7 @@ export const nest: DungeonDef = {
         r: { kind: 'message', text: 'A frayed rope bridge sways over nothing at all. You cross one at a time, and nobody looks down. Well, Pip looks down. Once.' },
         c: { kind: 'trap', text: 'A crag eagle knocks a boulder loose from far above. Look out below!', dice: [4, 10] },
         d: { kind: 'fountain', text: 'A pool of snowmelt, clear as glass. One sip and your tiredness simply washes away.' },
-        3: prayerFlag(3, "The highest pole on the Crags. The last of Brother Tumble's prayer flags goes up, and far below, you hear a faint, happy cheer."),
+        3: prayerFlag(3, "The highest pole on the Crags. Up goes one of Brother Tumble's prayer flags, and far below, you hear a faint, happy cheer."),
         f: {
           kind: 'fight',
           text: 'The air fizzes. Storm wisps pour out of a thundercloud stuck on the cliff!',

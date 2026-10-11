@@ -165,9 +165,14 @@ function whereDone(q: QuestDef, featherAt: [number, number][], story: string[]):
         ss.some((s) =>
           (s.kind === 'treasure' && s.item === g.item) ||
           (s.kind === 'fight' && (s.reward?.item === g.item || s.groups.some((x) => drops(x.monster, g.item))))));
-    } else if (g.kind === 'flag') {
-      // Where the flag is set: by something on a level, or by going through a way in (the start of its dungeon).
-      here = find((_, ss) => ss.some((s) => setsFlag(s) === g.flag)) ?? wayIn(g.flag, story);
+    } else if (g.kind === 'flag' || g.kind === 'flags') {
+      // Where each flag is set: by something on a level, or by going through a way in (the start of
+      // its dungeon). With several, the last of them.
+      for (const flag of g.kind === 'flag' ? [g.flag] : g.flags) {
+        const at = find((_, ss) => ss.some((s) => setsFlag(s) === flag)) ?? wayIn(flag, story);
+        if (!at) return null;
+        if (!here || later(at, here)) here = at;
+      }
     } else {
       here = featherAt[g.count - 1];
     }

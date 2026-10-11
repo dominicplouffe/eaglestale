@@ -137,6 +137,25 @@ describe('content integrity', () => {
     }
   });
 
+  it('every story flag a quest waits on is set by something in the game', () => {
+    const set = new Set<string>();
+    for (const q of content.quests.values()) if (q.flag) set.add(q.flag);
+    for (const d of content.dungeons.values()) {
+      for (const level of d.levels) {
+        for (const s of Object.values(level.specials)) {
+          // Locks and tubes only check theirs; everything else (ways in included) sets it.
+          if (s.kind !== 'lock' && s.kind !== 'teleport' && 'flag' in s && s.flag) set.add(s.flag);
+        }
+      }
+    }
+    for (const q of content.quests.values()) {
+      for (const { goal } of q.steps) {
+        const flags = goal.kind === 'flag' ? [goal.flag] : goal.kind === 'flags' ? goal.flags : [];
+        for (const f of flags) expect(set.has(f), `${q.id} waits on ${f}`).toBe(true);
+      }
+    }
+  });
+
   it('a finale fight, wherever there is one, sits on the last level of its dungeon', () => {
     let finales = 0;
     for (const d of content.dungeons.values()) {

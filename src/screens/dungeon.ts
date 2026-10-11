@@ -206,8 +206,10 @@ class DungeonView {
     for (const { x, y, special } of specialSquares(this.level)) {
       let pixels: Uint32Array | null = null;
       let scale = 0.8;
-      if (special.kind === 'talk' && special.look) {
-        pixels = artPixels(special.look.art, special.look.palette);
+      if ((special.kind === 'talk' || special.kind === 'message') && special.look) {
+        // Something dealt with (a cage opened, a bell rung) can look different afterwards.
+        const look = this.used(x, y) ? special.lookDone ?? special.look : special.look;
+        pixels = artPixels(look.art, look.palette);
         scale = 0.62;
       }
       else if (special.kind === 'fight' && !special.hidden && !this.used(x, y)) {

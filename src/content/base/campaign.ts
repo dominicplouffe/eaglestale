@@ -234,9 +234,10 @@ export const quests: QuestDef[] = [
     source: 'given',
     summary: "Free Finch's songbirds from the Sanctum.",
     steps: [
-      { text: 'Free the caged songbirds hidden around the Sanctum (one of three).', goal: { kind: 'flag', flag: 'cage-1' } },
-      { text: 'Free the caged songbirds hidden around the Sanctum (two of three).', goal: { kind: 'flag', flag: 'cage-2' } },
-      { text: 'Free the caged songbirds hidden around the Sanctum (three of three).', goal: { kind: 'flag', flag: 'cage-3' } },
+      {
+        text: "Open the cages Malachar's cult hid around the Sanctum, and let Finch's songbirds go.",
+        goal: { kind: 'flags', flags: ['cage-1', 'cage-2', 'cage-3'], verb: 'freed' },
+      },
     ],
     reward: { gold: 150, item: 'charm', xp: 300 },
     done: 'Every songbird is free. Somewhere above, Finch is crying happy tears and a little choir is singing your names, slightly wrong.',
@@ -259,9 +260,10 @@ export const quests: QuestDef[] = [
     source: 'given',
     summary: "Free Foreman Grubb's three sewermen from behind the Overflow's sluice gates.",
     steps: [
-      { text: 'Find the sewermen trapped in the Overflow (one of three). The great wheel lifts the sluice gates.', goal: { kind: 'flag', flag: 'sewerman-1' } },
-      { text: 'Find the sewermen trapped in the Overflow (two of three).', goal: { kind: 'flag', flag: 'sewerman-2' } },
-      { text: 'Find the sewermen trapped in the Overflow (three of three).', goal: { kind: 'flag', flag: 'sewerman-3' } },
+      {
+        text: 'Find the sewermen trapped behind the sluice gates of the Overflow. The great wheel lifts the gates.',
+        goal: { kind: 'flags', flags: ['sewerman-1', 'sewerman-2', 'sewerman-3'], verb: 'found' },
+      },
     ],
     reward: { gold: 300, item: 'greaterdraught', xp: 600 },
     done: "Grubb's lads are home, damp and grateful. Grubb pays up and swears he'll never send anyone down there again (he will).",
@@ -325,9 +327,10 @@ export const quests: QuestDef[] = [
     source: 'given',
     summary: 'Ring the three bells of the old royal aviary, to lay its ghosts to rest.',
     steps: [
-      { text: 'Ring the bells of the Old Aviary (one of three).', goal: { kind: 'flag', flag: 'bell-1' } },
-      { text: 'Ring the bells of the Old Aviary (two of three).', goal: { kind: 'flag', flag: 'bell-2' } },
-      { text: 'Ring the bells of the Old Aviary (three of three).', goal: { kind: 'flag', flag: 'bell-3' } },
+      {
+        text: 'Ring the bells of the Old Aviary, so its ghostly birds can rest.',
+        goal: { kind: 'flags', flags: ['bell-1', 'bell-2', 'bell-3'], verb: 'rung' },
+      },
     ],
     reward: { item: 'songcharm', xp: 2000 },
     done: 'With the last bell, the ghost of the Old Keeper smiles, and fades like a song ending. On the ground where he stood: a little charm shaped like a songbird.',
@@ -360,9 +363,10 @@ export const quests: QuestDef[] = [
     source: 'given',
     summary: "Hang Brother Tumble's prayer flags back up on Mount Talon.",
     steps: [
-      { text: "Hang Brother Tumble's prayer flags back up (one of three): one on the Pilgrims' Road, two on the Crags.", goal: { kind: 'flag', flag: 'prayer-flag-1' } },
-      { text: "Hang Brother Tumble's prayer flags back up (two of three).", goal: { kind: 'flag', flag: 'prayer-flag-2' } },
-      { text: "Hang Brother Tumble's prayer flags back up (three of three).", goal: { kind: 'flag', flag: 'prayer-flag-3' } },
+      {
+        text: 'Hang Brother Tumble\'s prayer flags back up: one on the Pilgrims\' Road, two on the Crags.',
+        goal: { kind: 'flags', flags: ['prayer-flag-1', 'prayer-flag-2', 'prayer-flag-3'], verb: 'hung' },
+      },
     ],
     reward: { item: 'aquilasgaze', xp: 6000 },
     done: 'Far below, Brother Tumble rings a little bell. When you next pass his hut there is a circlet of golden feathers on the step, and a note: "Found this in the snow years ago. I think it was waiting for you."',

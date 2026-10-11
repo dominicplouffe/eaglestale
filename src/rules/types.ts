@@ -181,7 +181,16 @@ export type PlaceId = 'guild' | 'shop' | 'temple' | 'inn' | 'tower';
  * done (a fight won, a treasure taken, a talk had), which quests and locks can wait for.
  */
 export type Special =
-  | { kind: 'message'; text: string; flag?: string; /** Said on later visits instead of `text`. */ after?: string }
+  | {
+      kind: 'message';
+      text: string;
+      flag?: string;
+      /** Said on later visits instead of `text`. */
+      after?: string;
+      /** Something to see standing there (a bell, a flagpole), and how it looks once dealt with. */
+      look?: Look;
+      lookDone?: Look;
+    }
   | { kind: 'trap'; dice: Dice; text: string }
   | { kind: 'treasure'; text: string; gold?: number; item?: string; feather?: string; flag?: string }
   | { kind: 'fountain'; text: string }
@@ -224,8 +233,9 @@ export type Special =
       after: string;
       quest?: string;
       flag?: string;
-      /** How they look, standing there. */
+      /** How they look, standing there (and once talked to, if that changes: an opened cage, say). */
       look?: Look;
+      lookDone?: Look;
       /** `text` and `after` describe the scene rather than being said (a cat, say), so aren't quoted. */
       narrated?: boolean;
     }
@@ -375,6 +385,11 @@ export type QuestGoal =
   | { kind: 'collect'; item: string; count: number }
   /** A story flag, set by a special (a fight won, a treasure taken, someone talked to). */
   | { kind: 'flag'; flag: string }
+  /**
+   * Several story flags, in any order (three cages to open, say). `verb` says what doing one is
+   * called, for the progress line: "1 of 3 freed, 2 to go".
+   */
+  | { kind: 'flags'; flags: string[]; verb: string }
   /** Feathers found so far. */
   | { kind: 'feathers'; count: number }
   /** Feathers returned to the Eagle Tower. */

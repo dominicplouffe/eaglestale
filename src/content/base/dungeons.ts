@@ -139,6 +139,8 @@ const cage = (n: number) => ({
   text: 'You spring the lock. The songbird bursts out, sings three triumphant notes, and poops on a cult banner on its way out.',
   after: 'An empty cage. A single feather drifts down.',
   flag: `cage-${n}`,
+  look: { art: 'cage' },
+  lookDone: { art: 'cageopen' },
 });
 
 export const dungeons: DungeonDef[] = [
