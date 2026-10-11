@@ -148,7 +148,7 @@ export const dungeons: DungeonDef[] = [
     levels: [
       level('The Cellars', cellars, {
         theme: { wall: '#6b5a48', floor: '#3a3028', ceiling: '#1e1a16', door: '#8a5a2a', style: 'brick' },
-        encounterRate: 0.07,
+        encounterRate: 0.08,
         encounters: [
           { monster: 'rat', min: 2, max: 5, weight: 5 },
           { monster: 'bat', min: 1, max: 3, weight: 3 },

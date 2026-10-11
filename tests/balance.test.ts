@@ -1,73 +1,12 @@
 /**
- * Boss balance: simulated six-hero parties (full health, sensible orders) against each chapter boss.
- * Each boss should stop an under-levelled party and fall to one at the expected level, so the
- * difficulty curve can't drift silently. Real players arrive hurt, so real fights are harder.
+ * Boss balance: simulated six-hero parties (full health, sensible orders, starting kit) against the
+ * bosses of the first three chapters. Each should stop an under-levelled party and fall to one at
+ * the expected level, so the difficulty curve can't drift silently. Real players arrive hurt, so
+ * real fights are harder. Later bosses are tuned for parties in shop gear: see progression.test.ts,
+ * which checks every boss against the levels and gear a party really has when it gets there.
  */
 import { describe, expect, it } from 'vitest';
-import { Battle, type Order } from '../src/rules/combat';
-import { addXp, canUse, equipDelta, isAlive, knownSpells, xpForLevel } from '../src/rules/character';
-import type { Assist, Character } from '../src/rules/types';
-import { content } from '../src/content';
-import { Rng } from '../src/rules/rng';
-import { standardParty } from './helpers';
-import { canCast } from '../src/rules/spells';
-
-function orders(b: Battle): Map<string, Order> {
-  const o = new Map<string, Order>();
-  for (const c of b.party) {
-    if (!isAlive(c)) continue;
-    const hurt = b.party.filter(isAlive).sort((a, z) => a.hp / a.maxHp - z.hp / z.maxHp)[0];
-    const spells = knownSpells(c).filter((s) => canCast(c, s));
-    const heal = spells.find((s) => s.effect.kind === 'heal');
-    const dmg = spells.filter((s) => s.effect.kind === 'damage').sort((a, z) => z.cost - a.cost)[0];
-    if (heal && hurt.hp < hurt.maxHp * 0.5) o.set(c.id, { kind: 'cast', spell: heal.id, ally: hurt.id });
-    else if (dmg) o.set(c.id, { kind: 'cast', spell: dmg.id, group: b.liveGroupIndexes()[0] });
-    else if (b.reachableGroups(c).length) o.set(c.id, { kind: 'attack', group: b.reachableGroups(c)[0] });
-    else o.set(c.id, { kind: 'defend' });
-  }
-  return o;
-}
-/** Puts on the best of `gear` each hero can use (archers keep to bows, fighters to melee weapons). */
-function gearUp(party: Character[], gear: string[]): void {
-  for (const c of party) {
-    for (const id of gear) {
-      const item = content.item(id);
-      if (!item.slot || !canUse(c, item)) continue;
-      const worn = c.equipment[item.slot];
-      if (item.slot === 'weapon' && worn && !!content.item(worn).ranged !== !!item.ranged) continue;
-      const d = equipDelta(c, item);
-      if (d && d.dmg * 2 + d.def + d.hit > 0) c.equipment[item.slot] = id;
-    }
-  }
-}
-
-function partyAt(level: number, gear: string[] = []) {
-  const p = standardParty();
-  gearUp(p, gear);
-  for (const c of p) { addXp(c, xpForLevel(level, content.cls(c.classId).xpMult), new Rng(level)); c.hp = c.maxHp; c.sp = c.maxSp; }
-  return p;
-}
-
-/** What the Emporium sells once `feathers` feathers are home (its own stock plus the city's stages). */
-const shopGear = (feathers: number): string[] => [
-  ...content.shop('emporium').stock,
-  ...content.cityStages.filter((st) => st.feathers <= feathers).flatMap((st) => st.stock ?? []),
-];
-type Groups = { monster: string; count: number; distance?: number }[];
-function rate(level: number, groups: Groups, gear: string[] = [], n = 40, assist?: Assist): number {
-  let wins = 0;
-  for (let seed = 1; seed <= n; seed++) {
-    // The same groups, at the same distances, as the fight in the dungeon.
-    const b = new Battle(partyAt(level, gear), groups.map((g) => ({ ...g })), new Rng(seed), assist);
-    for (let r = 0; r < 60 && b.outcome === 'ongoing'; r++) b.resolveRound(orders(b));
-    if (b.outcome === 'victory') wins++;
-  }
-  return wins / n;
-}
-const bossFight = (level: number, key: string, dungeon = 'roost'): Groups =>
-  (content.dungeon(dungeon).levels[level].specials[key] as { groups: Groups }).groups;
-const bossAssist = (level: number, key: string, dungeon: string): Assist | undefined =>
-  (content.dungeon(dungeon).levels[level].specials[key] as { assist?: Assist }).assist;
+import { bossFight, rate, shopGear } from './sim';
 
 describe('boss balance', () => {
   it('the Kobold Chieftain needs a level 3 party', () => {
@@ -115,29 +54,6 @@ describe('boss balance', () => {
     expect(rate(10, bossFight(0, 'f', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
     expect(rate(10, bossFight(1, 'q', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
     expect(rate(11, bossFight(2, 'Q', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
-  });
-
-  it('the Aviary Warden needs a level 14 party', () => {
-    expect(rate(13, bossFight(1, 'A', 'wood'))).toBeLessThan(0.5);
-    expect(rate(15, bossFight(1, 'A', 'wood'))).toBeGreaterThanOrEqual(0.7);
-  });
-
-  it('Archdruid Bramblebeard needs a level 15 party', () => {
-    expect(rate(13, bossFight(2, 'B', 'wood'))).toBeLessThan(0.5);
-    expect(rate(16, bossFight(2, 'B', 'wood'))).toBeGreaterThanOrEqual(0.9);
-  });
-
-  it('the Storm Roc needs a level 16 party', () => {
-    expect(rate(15, bossFight(2, 'R', 'spire'))).toBeLessThan(0.5);
-    expect(rate(16, bossFight(2, 'R', 'spire'))).toBeGreaterThanOrEqual(0.75);
-  });
-
-  it('Malachar is too much for a party alone, but not with Aquila', () => {
-    const fight = bossFight(3, 'M', 'spire');
-    const aquila = bossAssist(3, 'M', 'spire');
-    expect(aquila).toBeDefined();
-    expect(rate(18, fight)).toBeLessThanOrEqual(0.25);
-    expect(rate(18, fight, [], 40, aquila)).toBeGreaterThanOrEqual(0.8);
   });
 
   it('the set fights of the Wood and the Spire are beatable by a party that has just arrived', () => {
