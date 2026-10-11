@@ -39,18 +39,23 @@ you choose, plus an autosave written whenever you take the stairs, rest at the i
   you have and what the city is like now.
 - **Talonreach** is a town you walk: timber-framed streets, the Eagle Tower, the temple and a suspicious clocktower. Townsfolk
   stand in the streets (some want help), most front doors answer back, and there is at least one hidden corner.
-  Steps beside the Eagle Tower lead down into the Roost Below; the sewer grate on Drain Street into the Gurgle.
+  Steps beside the Eagle Tower lead down into the Roost Below; the sewer grate on Drain Street into the Gurgle; and
+  Professor Pinion's Clocktower, at the end of Clock Lane, opens to anyone carrying his letter. Its floors go up, not down.
 - **Side tasks**: people you meet in town and in the dungeons ask for help, and the Guild's **bounty board** offers jobs (take up to three;
   come back to the Guild to claim the reward). Monsters drop the tails, sigils, fangs and sludge that bounties ask for.
-- **Locks and secrets**: some doors need a key, or a number of Aquila's feathers, and the Gurgle's sluice gates need a wheel
-  turned somewhere else. Some walls are not walls at all; walk into them to find out, and a rogue in the party will feel a
-  draught when one is straight ahead. People, bosses and chests can be seen standing in the distance.
+- **Locks and secrets**: some doors need a key, or a number of Aquila's feathers, and some gates need a wheel or lever
+  worked somewhere else. Some walls are not walls at all; walk into them to find out, and a rogue in the party will feel a
+  draught when one is straight ahead. Brass tubes and lifts whisk the party about (the Clocktower's lift needs switching on
+  first). People, bosses and chests can be seen standing in the distance.
 - **Guild**: create heroes (choose race, class and spend bonus points) or hit *Quick-start party*. Reorder the party: slots 1-3 are the front row, 4-6 the back row.
 - **Emporium**: buy and sell equipment (selling pays half price; quest items can't be sold). Each item shows how it compares with what the selected hero has on, and *Buy & equip* puts it on straight away.
 - **Temple**: revive the dead (if you can't cover the fee, the temple takes what gold you have) and heal wounds (1g per 5 HP). **Inn**: rest (heals HP/SP).
 - **Saving**: three save slots (`C`, then `S`, in town or at camp) and an autosave, written whenever you take the stairs, leave a building, rest or return feathers.
 - **Combat rules in brief**: only the front row can melee, and only against the group at melee range. Archers, slingers and spells reach every group.
   Distant groups march closer each round unless they have ranged attacks. Sleeping monsters are hit automatically and wake when damaged.
+  Clockwork never sleeps, but Rust Bolt and Corrosion hit it twice as hard.
+- **Spells** run up to level 12 for every spellcaster: group and party-wide spells, party heals, and Revive, which brings a
+  fallen hero back in battle or at camp. Hover over a spell in battle to see what it does.
 
 ## Project layout
 
@@ -63,8 +68,8 @@ src/
   gfx/         Graphics, all drawn in code:
                  dungeonView.ts  first-person raycaster (textured walls, floors, doorways, torchlight, smooth movement,
                                  sky and two-storey streets outdoors, sprites for people, foes and chests)
-                 textures.ts     wall/floor/ceiling textures painted from a level's theme colours (brick, stone, rune, sewer, city)
-                 art.ts          32x32 drawings (art/monsters.ts, art/sewer.ts, art/people.ts) with recolourable materials for variants
+                 textures.ts     wall/floor/ceiling textures painted from a level's theme colours (brick, stone, rune, sewer, city, clockwork)
+                 art.ts          32x32 drawings (art/monsters.ts, sewer.ts, clockwork.ts, people.ts) with recolourable materials
                  portrait.ts     layered head-and-shoulders portraits (art/portraits.ts)
                  scenes.ts       town, title and victory scenes; font.ts the pixel font; minimap.ts the auto-map
   screens/     title, town, guild, shop, temple, inn, dungeon, combat, victory; saveMenu.ts picks save slots
@@ -83,8 +88,10 @@ Everything the player sees as *content* is data. Add or change it without touchi
 - **Monster looks**: a monster's `sprite` names a drawing in `src/gfx/art/monsters.ts` (32 rows of 32 palette keys).
   Its `palette` can recolour a drawing's named `materials` for a variant, e.g. the Cult Mage is the cultist drawing
   with `{ robe: '#3a4aa8', trim: '#e8e8f0' }`; highlight and shadow tones are derived automatically.
-- **Spell looks**: a spell's `look` (`bolt`, `fire`, `ice`, `holy`, `sleep`, `song`, `ward`, `heal`) picks its battle effect.
-- **Dungeons**: `dungeons.ts` and `gurgle.ts` build each level with `generateLevel` (`src/content/levelgen.ts`): a seed (same seed, same level),
+- **Spells**: a spell's `effect` is `damage` (optionally with a `bane`: double against `construct` monsters), `heal`
+  (one ally, or the whole `party`), `sleep`, `defense` or `revive` (target `fallen`). Its `look` (`bolt`, `fire`, `ice`,
+  `holy`, `sleep`, `song`, `ward`, `heal`) picks its battle effect. A monster marked `construct` never sleeps.
+- **Dungeons**: `dungeons.ts`, `gurgle.ts` and `clocktower.ts` build each level with `generateLevel` (`src/content/levelgen.ts`): a seed (same seed, same level),
   a size, how many rooms and extra loops, and the special letters to scatter from near the stairs up to far away.
   Hand-drawn set pieces ("vaults") are placed among the rooms: draw one as text, mark its single way in with `*`,
   and say what that entrance becomes (a door, a lock letter, a secret-wall letter) and whether it sits `near` or `far`:
@@ -97,14 +104,16 @@ Everything the player sees as *content* is data. Add or change it without touchi
   Each letter is defined in the level's `specials`: a `message`, `treasure` (gold, an item, a feather), `trap`, `fountain`,
   `fight` (a scripted battle with a reward), `lock` (needs a `key` item, a number of `feathers` and/or a story `flag`,
   e.g. one a wheel sets somewhere else), `secret` (a wall that opens when walked into) or `talk` (someone who can start
-  a `quest`, with a `look` so they can be seen standing there). Any of them can set a story `flag`. A `fight` with
-  `finale: true` ends the game. A level's `theme` colours (and `style`: `brick`, `stone`, `rune`, `sewer` or `city`)
-  decide how its textures are painted.
+  a `quest`, with a `look` so they can be seen standing there) or `teleport` (a tube or lift to the square marked `to`,
+  on another `level` if given, working only once its `flag` is set). Any of them can set a story `flag`. A `fight` with
+  `finale: true` ends the game. A level's `theme` colours (and `style`: `brick`, `stone`, `rune`, `sewer`, `city` or
+  `clockwork`) decide how its textures are painted. A dungeon marked `ascending` is a tower: its stairs climb.
 - **The town**: `city.ts` is a dungeon with `city: true` and one hand-drawn level. Its `building` specials are front doors
   set in walls (`place` opens the Guild, Emporium, Temple, Inn or Eagle Tower; other doors just say their `text`), and
-  `portal` squares lead down into a dungeon (optionally needing a `key` or feathers). `areas` name the streets,
-  `landmarks` draw a block of wall as a taller tower, clocktower or temple, and a `sky` colour puts the level outdoors.
-  A new dungeon needs a portal in town; climbing out of it brings the party back to that portal.
+  `portal` squares lead down into a dungeon (optionally needing a `key` or feathers); a `building` with a `dungeon` is a
+  front door into one, like the Clocktower's. Once a way in with a `flag` has been used it stays open, and its story key is
+  left behind. `areas` name the streets, `landmarks` draw a block of wall as a taller tower, clocktower or temple, and a
+  `sky` colour puts the level outdoors. A new dungeon needs a way in from town; leaving it brings the party back there.
 - **Quests, feathers and the city**: `src/content/base/campaign.ts`. A quest is a list of steps, each with a goal:
   `kill` a number of a monster, `collect` items, reach a story `flag`, find or `offered` a number of `feathers`.
   Its `source` says how it starts: at the beginning (`start`), on the Guild's bounty board (`board`, optionally
@@ -120,13 +129,14 @@ Everything the player sees as *content* is data. Add or change it without touchi
   with simulated parties to check it is beatable at the intended level, and not before; `tests/campaign.test.ts` plays the
   main story through its flags and feathers.
 
-## Current scope (version 0.3)
+## Current scope (version 0.4)
 
-6 races, 7 classes (Knight, Paladin, Ranger, Rogue, Minstrel, Healer, Mage), 12 spells, 64 items, 26 monsters.
+6 races, 7 classes (Knight, Paladin, Ranger, Rogue, Minstrel, Healer, Mage), 26 spells (up to level 12), 90 items, 36 monsters.
 The campaign is being built in chapters. Done so far: the walkable city of **Talonreach**; **the Roost Below** (three
-41x41 levels, three feathers, three bosses); and **the Gurgle** (two levels of sewers, two feathers, Old Snapjaw and the
-Rat King). Together: 5 of the 12 feathers, 6 side tasks and 11 bounties. Later chapters (Professor Pinion's Clocktower,
-the Moulted Wood and Malachar's Featherless Spire) are planned; the main quest stops at "The Clocktower" until they exist.
+41x41 levels, three feathers, three bosses); **the Gurgle** (two levels of sewers, two feathers, Old Snapjaw and the Rat
+King); and **Professor Pinion's Clocktower** (three floors going up, three feathers, the Grinder and the Mechanical Eagle).
+Together: 8 of the 12 feathers, 9 side tasks, 15 bounties and eight stages of the city's recovery. Later chapters (the
+Moulted Wood and Malachar's Featherless Spire) are planned; the main quest stops at "The Moulted Wood" until they exist.
 
 Saves are versioned: when the format changes, bump `SAVE_VERSION` and add a migration step in `src/rules/state.ts`
 so existing saves keep loading. Saves that mention items or places that no longer exist are repaired on load.

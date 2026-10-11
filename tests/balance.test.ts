@@ -99,6 +99,22 @@ describe('boss balance', () => {
     expect(rate(8, bossFight(1, 'Q', 'gurgle'))).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('the Grinder needs a level 11 party', () => {
+    expect(rate(9, bossFight(1, 'G', 'clocktower'))).toBeLessThan(0.3);
+    expect(rate(12, bossFight(1, 'G', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('Professor Pinion and his Mechanical Eagle need a level 12-13 party', () => {
+    expect(rate(11, bossFight(2, 'E', 'clocktower'))).toBeLessThan(0.5);
+    expect(rate(13, bossFight(2, 'E', 'clocktower'))).toBeGreaterThanOrEqual(0.75);
+  });
+
+  it("the Clocktower's set fights are beatable by a party that has just arrived", () => {
+    expect(rate(10, bossFight(0, 'f', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
+    expect(rate(10, bossFight(1, 'q', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
+    expect(rate(11, bossFight(2, 'Q', 'clocktower'))).toBeGreaterThanOrEqual(0.9);
+  });
+
   it('gear from the Emporium makes a real difference', () => {
     // Grackle stops a level 5 party in its starting kit, but not one in steel bought from the city.
     expect(rate(5, bossFight(2, 'G'))).toBeLessThan(0.5);

@@ -80,13 +80,17 @@ export interface ItemDef {
   quest?: boolean;
 }
 
-export type SpellTarget = 'enemy' | 'group' | 'allEnemies' | 'ally' | 'party';
+/** 'fallen' is a dead ally (for spells that bring heroes back). A 'party' heal mends every living hero. */
+export type SpellTarget = 'enemy' | 'group' | 'allEnemies' | 'ally' | 'party' | 'fallen';
 
 export type SpellEffect =
-  | { kind: 'damage'; dice: Dice }
+  /** `bane`: double damage against that kind of foe. */
+  | { kind: 'damage'; dice: Dice; bane?: 'construct' }
   | { kind: 'heal'; dice: Dice }
   | { kind: 'sleep'; turns: number }
-  | { kind: 'defense'; amount: number; turns: number };
+  | { kind: 'defense'; amount: number; turns: number }
+  /** Brings a fallen hero back with this share of their HP. */
+  | { kind: 'revive'; share: number };
 
 export interface SpellDef {
   id: string;
@@ -128,6 +132,8 @@ export interface MonsterDef {
   palette?: Record<string, string>;
   /** Items each one may drop when the party wins (e.g. rat tails for a bounty). */
   drops?: { item: string; chance: number }[];
+  /** A machine: it never sleeps, and spells with a `bane` against constructs hit it twice as hard. */
+  construct?: boolean;
 }
 
 export interface EncounterEntry {
@@ -216,7 +222,16 @@ export type Special =
       kind: 'building';
       name: string;
       place?: PlaceId;
+      /** Said at the door: why it is shut, or what happens as it opens. */
       text?: string;
+      /** A door into a dungeon (a tower, say), which can need a `key` or `feathers` like a portal. */
+      dungeon?: string;
+      key?: string;
+      feathers?: number;
+      /** Set the first time the party goes in; after that the door stays open. */
+      flag?: string;
+      /** Said as the party goes in. */
+      opened?: string;
       /** Listed under Go to from the start (the places everyone in town knows); others once seen. */
       known?: boolean;
       /** Its key in the Go to list. */
@@ -230,10 +245,23 @@ export type Special =
       text: string;
       key?: string;
       feathers?: number;
-      /** Set the first time the party goes through. */
+      /** Set the first time the party goes through; after that the way stays open. */
       flag?: string;
       known?: boolean;
       hotkey?: string;
+    }
+  | {
+      /**
+       * A tube, lift or trapdoor: stepping on it whisks the party to the square marked `to` (on `level`
+       * of the same dungeon, or this one). With `flag`, it only works once that story flag is set.
+       */
+      kind: 'teleport';
+      text: string;
+      to: string;
+      level?: number;
+      flag?: string;
+      /** Said when it doesn't work yet. */
+      off?: string;
     };
 
 /** A named part of a level, e.g. a street, shown in the location bar while the party is in it. */
@@ -275,10 +303,11 @@ export interface DungeonTheme {
   door: string;
   /**
    * How the first-person textures are painted: 'brick' (with wall torches), 'stone' (large mossy
-   * blocks), 'rune' (dressed stone with glowing runes), 'sewer' (wet brick and pipes) or 'city'
-   * (timber-framed houses on cobbles). Defaults to 'brick'.
+   * blocks), 'rune' (dressed stone with glowing runes), 'sewer' (wet brick and pipes), 'city'
+   * (timber-framed houses on cobbles) or 'clockwork' (brass plates, panelling and turning gears).
+   * Defaults to 'brick'.
    */
-  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city';
+  style?: 'brick' | 'stone' | 'rune' | 'sewer' | 'city' | 'clockwork';
   /** Outdoors: the colour of the sky where it meets the rooftops (there is no ceiling). */
   sky?: string;
 }
@@ -289,6 +318,8 @@ export interface DungeonDef {
   levels: DungeonLevel[];
   /** The walkable town: one level of streets, where buildings open into the town's screens. */
   city?: boolean;
+  /** A tower: its levels go up, so the '>' stairs climb and '<' leads back down. */
+  ascending?: boolean;
 }
 
 export interface ShopDef {

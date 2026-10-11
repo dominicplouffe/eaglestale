@@ -69,6 +69,16 @@ export function generateLevel(o: LevelOptions): Maze {
   const sealed: boolean[][] = Array.from({ length: H }, () => Array<boolean>(W).fill(false));
   const rooms: Room[] = [];
 
+  /** Where a vault's way in will be: of its '*' squares, the one facing the middle of the map. */
+  const vaultEntrance = (r: Room): [number, number] => {
+    const entrances: [number, number][] = [];
+    r.vault?.rows.forEach((row, dy) => {
+      for (let dx = 0; dx < row.length; dx++) if (row[dx] === '*') entrances.push([r.x + dx, r.y + dy]);
+    });
+    entrances.sort((a, b) => Math.abs(a[0] - W / 2) + Math.abs(a[1] - H / 2) - (Math.abs(b[0] - W / 2) + Math.abs(b[1] - H / 2)));
+    return entrances[0] ?? [r.x, r.y];
+  };
+
   const fits = (r: Room, margin: number): boolean =>
     r.x >= 1 && r.y >= 1 && r.x + r.w <= W - 1 && r.y + r.h <= H - 1 && rooms.every((o2) => gap(r, o2, margin));
 
@@ -91,6 +101,17 @@ export function generateLevel(o: LevelOptions): Maze {
   rooms.push(start);
   const [sx, sy] = centre(start);
 
+  /** The vault's way in (the '*' facing the middle of the map, as carved below) has a square outside it a corridor can use. */
+  const reachableEntrance = (r: Room): boolean => {
+    const [ex, ey] = vaultEntrance(r);
+    return STEPS.some(([dx, dy]) => {
+      const nx = ex + dx;
+      const ny = ey + dy;
+      const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h;
+      return !inside && nx >= 1 && ny >= 1 && nx < W - 1 && ny < H - 1;
+    });
+  };
+
   // Vaults, each tried at many spots, keeping the one nearest/farthest from the start as asked.
   for (const v of o.vaults ?? []) {
     const h = v.rows.length;
@@ -103,6 +124,8 @@ export function generateLevel(o: LevelOptions): Maze {
       const [cx, cy] = centre(r);
       const d = Math.abs(cx - sx) + Math.abs(cy - sy);
       const score = v.place === 'far' ? d : v.place === 'near' ? -d : rng.next();
+      // (Checked after the score, so the random numbers drawn, and so every existing level, stay the same.)
+      if (!reachableEntrance(r)) continue;
       if (score > bestScore) {
         best = r;
         bestScore = score;
@@ -136,9 +159,7 @@ export function generateLevel(o: LevelOptions): Maze {
       }
     });
     if (entrances.length === 0) throw new Error('level generator: a vault needs at least one * entrance');
-    // Use the entrance facing the middle of the map, where the other rooms are.
-    entrances.sort((a, b) => Math.abs(a[0] - W / 2) + Math.abs(a[1] - H / 2) - (Math.abs(b[0] - W / 2) + Math.abs(b[1] - H / 2)));
-    [r.ax, r.ay] = entrances[0];
+    [r.ax, r.ay] = vaultEntrance(r);
     g[r.ay][r.ax] = r.vault.entrance ?? '+';
     sealed[r.ay][r.ax] = false;
   }

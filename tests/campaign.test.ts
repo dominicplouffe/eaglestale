@@ -17,7 +17,7 @@ const main = (s: GameState): string | undefined => activeQuests(s).find((q) => q
 const step = (s: GameState, id: string): number => s.quests[id].step;
 
 describe('the campaign', () => {
-  it('runs from the Roost through the Gurgle to the Clocktower', () => {
+  it('runs from the Roost through the Gurgle and the Clocktower to the Moulted Wood', () => {
     const s = newCampaign();
     expect(main(s)).toBe('mq-roost');
 
@@ -44,6 +44,19 @@ describe('the campaign', () => {
     expect(city.some((line) => line.includes('Five feathers'))).toBe(true);
     expect(s.quests['mq-gurgle'].status).toBe('done');
     expect(main(s)).toBe('mq-clocktower');
+
+    // Up the Clocktower: through the door, three feathers, home again.
+    questEvent(s, { kind: 'flag', flag: 'clocktower-entered' });
+    expect(step(s, 'mq-clocktower')).toBe(1);
+    giveReward(s, { feather: 'cog' });
+    giveReward(s, { feather: 'pendulum' });
+    expect(step(s, 'mq-clocktower')).toBe(1);
+    giveReward(s, { feather: 'tin' });
+    expect(step(s, 'mq-clocktower')).toBe(2);
+    const later = offerFeathers(s);
+    expect(later.some((line) => line.includes('Eight feathers'))).toBe(true);
+    expect(s.quests['mq-clocktower'].status).toBe('done');
+    expect(main(s)).toBe('mq-wood');
   });
 
   it("the Gurgle's side tasks finish when their flags are set, and bounties need the Guild", () => {
@@ -67,7 +80,7 @@ describe('the campaign', () => {
   it('every main quest leads somewhere until the chapters still being built', () => {
     for (const q of content.quests.values()) {
       if (q.kind !== 'main') continue;
-      if (q.id === 'mq-clocktower') continue;
+      if (q.id === 'mq-wood') continue;
       expect(q.next?.length, q.id).toBeGreaterThan(0);
     }
   });

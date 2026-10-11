@@ -162,16 +162,40 @@ export function turnIn(s: GameState, id: string): string[] {
 
 // ---- Locks ----------------------------------------------------------------------------
 
+/** "the Ossuary Key", but "Professor Pinion's Letter" (a name that's already someone's needs no "the"). */
+const theItem = (name: string): string => (/'s\b/.test(name) ? name : `the ${name}`);
+
 /** Why a locked door won't open yet, or null if the party has what it needs. */
 export function lockedBecause(s: GameState, lock: { key?: string; feathers?: number; flag?: string }): string | null {
   const missing: string[] = [];
-  if (lock.key && itemCount(s, lock.key) === 0) missing.push(`the ${content.item(lock.key).name}`);
+  if (lock.key && itemCount(s, lock.key) === 0) missing.push(theItem(content.item(lock.key).name));
   const need = lock.feathers ?? 0;
   if (s.feathers.length < need) missing.push(`${need} of Aquila's feathers (you have ${s.feathers.length})`);
   if (missing.length) return `You need ${missing.join(' and ')}.`;
   // A flag lock's own text says what might open it (a wheel somewhere, say).
   if (lock.flag && !s.story[lock.flag]) return "It won't budge.";
   return null;
+}
+
+/**
+ * Takes a story key out of the party's packs once its door is open for good, unless another door in
+ * the game still needs it. Returns what to tell the player, or null if the key stays.
+ */
+export function useUpKey(s: GameState, keyId: string | undefined): string | null {
+  if (!keyId || !content.item(keyId).quest) return null;
+  let doors = 0;
+  for (const d of content.dungeons.values()) {
+    for (const level of d.levels) {
+      for (const sp of Object.values(level.specials)) {
+        if ((sp.kind === 'lock' || sp.kind === 'portal' || sp.kind === 'building') && sp.key === keyId) doors += 1;
+      }
+    }
+  }
+  if (doors > 1) return null;
+  const holder = party(s).find((c) => c.inventory.includes(keyId));
+  if (!holder) return null;
+  holder.inventory.splice(holder.inventory.indexOf(keyId), 1);
+  return `${holder.name} leaves ${theItem(content.item(keyId).name)} behind; the way stays open.`;
 }
 
 // ---- Rewards, feathers and the city ------------------------------------------------

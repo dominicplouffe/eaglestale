@@ -87,6 +87,70 @@ export const monsters: MonsterDef[] = [
     ],
     sprite: 'ratking',
   },
+  // Professor Pinion's Clocktower: the Workshop
+  {
+    id: 'tinsoldier', name: 'Tin Soldier', plural: 'Tin Soldiers', construct: true, hp: [4, 8, 8], def: 10, toHit: 9, speed: 3, xp: 150, gold: [4, 10],
+    attacks: [{ verb: 'bayonets', dice: [1, 10, 4] }, { verb: 'fires a cork at', dice: [1, 6, 2], ranged: true }],
+    drops: [{ item: 'mainspring', chance: 0.5 }],
+    sprite: 'tinsoldier',
+  },
+  {
+    id: 'brassowl', name: 'Brass Owl', plural: 'Brass Owls', construct: true, hp: [3, 8, 6], def: 11, toHit: 9, speed: 8, xp: 140, gold: [2, 8],
+    attacks: [{ verb: 'swoops at', dice: [1, 8, 3] }, { verb: 'shoots a brass bolt at', dice: [1, 6, 3], ranged: true }],
+    sprite: 'brassowl',
+  },
+  {
+    id: 'gearspider', name: 'Gear Spider', plural: 'Gear Spiders', construct: true, hp: [3, 8, 8], def: 10, toHit: 9, speed: 6, xp: 140, gold: [2, 8],
+    attacks: [{ verb: 'snips at', dice: [2, 6, 3] }],
+    drops: [{ item: 'brassgear', chance: 0.6 }],
+    sprite: 'spider', palette: { body: '#c8a048' },
+  },
+  {
+    id: 'apprentice', name: "Pinion's Apprentice", plural: "Pinion's Apprentices", hp: [3, 6, 10], def: 8, toHit: 9, speed: 4, xp: 130, gold: [5, 10],
+    attacks: [{ verb: 'zaps with a spark-gun', dice: [2, 6, 3], ranged: true }, { verb: 'whacks with a wrench', dice: [1, 8, 2] }],
+    sprite: 'professor', palette: { C: '#b08a5a', c: '#8a6a42', d: '#5e4628', H: '#6a4a2a', h: '#4a3020' },
+  },
+
+  // The Clocktower: the Gearworks
+  {
+    id: 'cuckoo', name: 'Angry Cuckoo', plural: 'Angry Cuckoos', construct: true, hp: [3, 6, 8], def: 10, toHit: 10, speed: 9, xp: 120, gold: [1, 6],
+    attacks: [{ verb: 'pecks', dice: [1, 8, 4] }, { verb: 'screams CUCKOO! at', dice: [1, 6, 2], ranged: true }],
+    sprite: 'cuckoo',
+  },
+  {
+    id: 'golem', name: 'Clockwork Golem', plural: 'Clockwork Golems', construct: true, hp: [6, 10, 14], def: 12, toHit: 11, speed: 2, xp: 320, gold: [4, 12],
+    attacks: [{ verb: 'pounds', dice: [2, 8, 5] }],
+    drops: [{ item: 'brassgear', chance: 0.5 }],
+    sprite: 'golem',
+  },
+  {
+    id: 'grinder', name: 'The Grinder', plural: 'Grinders', unique: true, construct: true, hp: [22, 10, 60], def: 12, toHit: 11, speed: 3, xp: 2600, gold: [12, 12], actions: 2,
+    attacks: [{ verb: 'grinds', dice: [3, 8, 6] }, { verb: 'sprays boiling oil over', dice: [1, 10, 2], all: true }],
+    sprite: 'golem', palette: { I: '#d8b060', i: '#9a7838', j: '#5e4422' },
+  },
+
+  // The Clocktower: the Clock Face
+  {
+    id: 'tinknight', name: 'Brass Guard', plural: 'Brass Guards', construct: true, hp: [5, 8, 12], def: 12, toHit: 11, speed: 3, xp: 220, gold: [5, 10],
+    attacks: [{ verb: 'bayonets', dice: [1, 12, 5] }, { verb: 'fires a volley at', dice: [1, 8, 3], ranged: true }],
+    drops: [{ item: 'mainspring', chance: 0.8 }],
+    sprite: 'tinsoldier', palette: { B: '#b89030', b: '#7a5a20' },
+  },
+  {
+    id: 'mecheagle', name: 'The Mechanical Eagle', plural: 'Mechanical Eagles', unique: true, construct: true, hp: [28, 10, 90], def: 14, toHit: 13, speed: 7, xp: 3600, gold: [10, 10], actions: 2,
+    attacks: [
+      { verb: 'rakes with steel talons', dice: [3, 8, 6] },
+      { verb: 'beats its tin wings at', dice: [2, 6, 2], all: true },
+      { verb: 'screeches a steam whistle at', dice: [2, 6, 4], ranged: true },
+    ],
+    sprite: 'eagle',
+    palette: { W: '#e8eaf0', w: '#b8bcc8', m: '#8a8e9a', L: '#c8ccd8', G: '#9aa0ac', g: '#70767f', b: '#5a6068', B: '#3e424a', Y: '#f0c850', y: '#b08a30' },
+  },
+  {
+    id: 'pinion', name: 'Professor Pinion', plural: 'Professors', unique: true, hp: [10, 8, 30], def: 9, toHit: 9, speed: 5, xp: 800, gold: [20, 10],
+    attacks: [{ verb: 'throws a spanner at', dice: [2, 6, 3], ranged: true }],
+    sprite: 'professor',
+  },
   {
     id: 'malachar',
     name: 'Malachar the Plucker',

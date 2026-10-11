@@ -11,6 +11,7 @@ import {
   shopStock,
   startOpeningQuests,
   startQuest,
+  useUpKey,
   takeBounty,
   turnIn,
 } from '../src/rules/quests';
@@ -155,6 +156,15 @@ describe('quests', () => {
     expect(s.quests['test-fetch'].status).toBe('done');
     expect(hero.inventory).toContain('test-tail');
     expect(hero.inventory).not.toContain('test-letter');
+  });
+
+  it('a story key is left behind once its door is open for good, but ordinary items are kept', () => {
+    const s = game();
+    s.roster[0].inventory.push('test-letter', 'test-tail');
+    expect(useUpKey(s, 'test-letter')).toMatch(/leaves the Test Letter behind/);
+    expect(s.roster[0].inventory).toEqual(expect.not.arrayContaining(['test-letter']));
+    expect(useUpKey(s, 'test-tail')).toBeNull();
+    expect(s.roster[0].inventory).toContain('test-tail');
   });
 
   it('a lock can wait on a story flag (a wheel turned somewhere else)', () => {
