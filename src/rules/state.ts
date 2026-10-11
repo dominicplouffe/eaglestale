@@ -1,5 +1,5 @@
 import { content } from '../content/registry';
-import { MAX_PARTY } from './character';
+import { MAX_INVENTORY, MAX_PARTY } from './character';
 import { isWalkable, tileAt } from './dungeon';
 import { catchUpQuests, isTrophy, recoverStoryItems, repairQuests, startOpeningQuests, type QuestProgress } from './quests';
 import { SLOTS, type Character } from './types';
@@ -37,9 +37,11 @@ export interface GameState {
   story: Record<string, true>;
   /** The trophy pouch: monster drops kept for bounties (they take no room in a pack), by item id. */
   trophies: Record<string, number>;
+  /** The Guild chest: items left in town for later, by item id (as many as you like). */
+  stash: string[];
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const STARTING_GOLD = 500;
 
 export function newGameState(): GameState {
@@ -59,6 +61,7 @@ export function newGameState(): GameState {
     offered: 0,
     story: {},
     trophies: {},
+    stash: [],
   };
 }
 
@@ -88,6 +91,26 @@ export function movePartyMember(s: GameState, id: string, delta: -1 | 1): void {
   const j = i + delta;
   if (i < 0 || j < 0 || j >= s.party.length) return;
   [s.party[i], s.party[j]] = [s.party[j], s.party[i]];
+}
+
+/** Puts an item from a hero's pack in the Guild chest. Returns why not, or null. */
+export function storeItem(s: GameState, hero: Character, index: number): string | null {
+  const id = hero.inventory[index];
+  if (id === undefined) return 'Nothing there.';
+  if (content.item(id).quest) return 'Story items stay with the party.';
+  hero.inventory.splice(index, 1);
+  s.stash.push(id);
+  return null;
+}
+
+/** Takes one of an item out of the Guild chest and into a hero's pack. Returns why not, or null. */
+export function takeFromStash(s: GameState, itemId: string, hero: Character): string | null {
+  const at = s.stash.indexOf(itemId);
+  if (at < 0) return 'That is not in the chest.';
+  if (hero.inventory.length >= MAX_INVENTORY) return `${hero.name}'s pack is full.`;
+  s.stash.splice(at, 1);
+  hero.inventory.push(itemId);
+  return null;
 }
 
 export function deleteCharacter(s: GameState, id: string): void {
@@ -143,6 +166,8 @@ const MIGRATIONS: Record<number, (old: SaveData, notes: string[]) => SaveData> =
     if (moved > 0) notes.push(`Trophies (rat tails and the like) no longer take up room in packs: ${moved} moved to the party's trophy pouch.`);
     return { ...old, roster, trophies };
   },
+  // Version 4 adds the Guild chest.
+  3: (old) => ({ ...old, stash: [] }),
 };
 
 const DAMAGED = 'The save file is damaged.';
@@ -195,6 +220,7 @@ function hasStateShape(d: SaveData): d is SaveData & GameState {
     typeof d.offered === 'number' &&
     isObject(d.story) &&
     isObject(d.trophies) &&
+    Array.isArray(d.stash) &&
     (d.location === null || isObject(d.location))
   );
 }
@@ -220,6 +246,9 @@ function checkContent(state: GameState): LoadResult {
   }
   state.party = state.party.filter((id) => state.roster.some((c) => c.id === id)).slice(0, MAX_PARTY);
   state.feathers = state.feathers.filter((id) => content.feathers.has(id));
+  const stash = state.stash.filter((id) => typeof id === 'string' && content.items.has(id));
+  if (stash.length < state.stash.length) notes.push(`${state.stash.length - stash.length} items in the Guild chest no longer exist and were removed.`);
+  state.stash = stash;
   // New content may bring new opening quests (e.g. a new chapter): start them for old saves too.
   notes.push(...[...startOpeningQuests(state), ...catchUpQuests(state)].filter((line) => line.startsWith('New')));
   repairQuests(state);

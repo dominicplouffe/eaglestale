@@ -53,6 +53,8 @@ you choose, plus an autosave written whenever you take the stairs, rest at the i
   draught when one is straight ahead. Brass tubes and lifts whisk the party about (the Clocktower's lift needs switching on
   first). People, bosses and chests can be seen standing in the distance.
 - **Guild**: create heroes (choose race, class and spend bonus points) or hit *Quick-start party*. Reorder the party: slots 1-3 are the front row, 4-6 the back row.
+  The **Guild chest** (`C`) keeps spare items in town for later: store them from any hero's pack and take them out again
+  whenever you're back (story items such as keys stay with the party).
 - **Emporium**: buy and sell equipment (selling pays half price; quest items can't be sold). Each item shows how it compares with what the selected hero has on, and *Buy & equip* puts it on straight away.
 - **Temple**: revive the dead (if you can't cover the fee, the temple takes what gold you have) and heal wounds (1g per 5 HP). **Inn**: rest (heals HP/SP).
 - **Saving**: three save slots (`C`, then `S`, in town or at camp) and an autosave, written whenever you take the stairs, leave a building, rest or return feathers.

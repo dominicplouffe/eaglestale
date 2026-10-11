@@ -169,6 +169,22 @@ test('take a bounty and follow it in the journal', async ({ page }) => {
   await expect(page.locator('#overlay')).toContainText('Rat Problem');
 });
 
+test('leave spare items in the Guild chest and take them back', async ({ page }) => {
+  await startWithParty(page);
+  await page.evaluate(() => (window as unknown as { __game: { party: { inventory: string[] }[] } }).__game.party[0].inventory.push('draught'));
+  await goTo(page, 'g');
+  await page.keyboard.press('c');
+  await expect(page.locator('#overlay h2')).toHaveText('Guild chest');
+  await page.locator('#overlay .row', { hasText: 'Healing Draught' }).getByRole('button', { name: 'Store' }).click();
+  await expect(log(page).last()).toHaveText('Sir Bonk puts the Healing Draught in the chest.');
+  await expect(page.locator('#overlay h3', { hasText: 'In the chest' })).toHaveText('In the chest (1)');
+  await page.locator('#overlay').getByRole('button', { name: 'Zorp (0/8)' }).click();
+  await page.locator('#overlay .row', { hasText: 'Healing Draught' }).getByRole('button', { name: 'Take (to Zorp)' }).click();
+  await expect(log(page).last()).toHaveText('Zorp takes the Healing Draught out of the chest.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#overlay')).toBeHidden();
+});
+
 test('walk the town: shops, the sewer grate, and down into the Gurgle and back', async ({ page }) => {
   await startWithParty(page);
   // Coming out of a building, the party faces the street.
